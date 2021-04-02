@@ -1,0 +1,23 @@
+<launch>
+     
+     <node pkg="kcctnavigation" name="laser2pc" type="laser2pc.py" output="screen">
+     </node>
+ 
+ 
+     <!-- 近傍点探索に使うパラメータと結果が入る変数
+     radius: 半径 r [m].
+     max_nn: 最近傍のお隣さんを何点見つかったら探索を打ち切るか。(nn = nearest neighbor)
+         0にすると打ち切らない
+     -->	
+     
+     <node pkg="kcctnavigation" name="pcl_distance" type="pcl_distance" >
+     <param name="max_nn" value="20"/>
+     <param name="radius" value="10.0"/>
+     <param name="x_max" value="5.0"/>
+     <param name="x_min" value="-0.5"/>
+     <param name="y_max" value="0.4"/>
+     <param name="y_min" value="-0.4"/>
+     <param name="loop_rate" value="10"/>		
+     </node>
+     
+ </launch>
