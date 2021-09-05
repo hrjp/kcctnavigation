@@ -175,6 +175,9 @@ target_link_libraries(emergency_stoper ${catkin_LIBRARIES})
 add_executable(person_tracking src/person_tracking)
 target_link_libraries(person_tracking ${catkin_LIBRARIES})
 
+add_executable(laser2pc src/laser2pc.cpp)
+target_link_libraries(laser2pc ${catkin_LIBRARIES})
+
 
 
 # all install targets should use catkin DESTINATION variables
