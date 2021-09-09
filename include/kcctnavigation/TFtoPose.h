@@ -21,7 +21,7 @@
 class TFtoPose{
 public:
 
-    TFtoPose(std::string base_id, std::string child_id, double rate=10.0);
+    TFtoPose(std::string& base_id, std::string& child_id, double rate=10.0);
 
     geometry_msgs::Pose toPose();
     geometry_msgs::PoseStamped toPoseStamped();
@@ -40,7 +40,7 @@ private:
 
 
 
-TFtoPose::TFtoPose(std::string base_id, std::string child_id, double rate) : nh_(), tfBuffer_(), tfListener_(tfBuffer_){
+TFtoPose::TFtoPose(std::string& base_id, std::string& child_id, double rate) : nh_(), tfBuffer_(), tfListener_(tfBuffer_){
     base_id_=base_id;
     child_id_=child_id;
     double duration = 1.0/rate;

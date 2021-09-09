@@ -14,7 +14,7 @@
      <param name="max_nn" value="20"/>
      <param name="radius" value="10.0"/>
      <param name="x_max" value="5.0"/>
-     <param name="x_min" value="-0.5"/>
+     <param name="x_min" value="0.0"/>
      <param name="y_max" value="0.4"/>
      <param name="y_min" value="-0.4"/>
      <param name="loop_rate" value="10"/>		

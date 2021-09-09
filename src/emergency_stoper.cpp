@@ -30,7 +30,10 @@ void pcl_callback(const std_msgs::Float32& pcl_dis_){
     pcl_dis=pcl_dis_.data;
 }
 
-double double_constrain(double val,double down_limit,double up_limit){
+double double_constrain(double& val,double& down_limit,double& up_limit){
+  if(up_limit<down_limit){
+    return 0.0;
+  }
   if(val>up_limit){
     return up_limit;
   }
@@ -47,9 +50,10 @@ ros::Publisher cmd_pub;
 
 void cmd_vel_callback(const geometry_msgs::Twist& cmd_vel_){
   static int stop_cou=0;
+  double down_limit=0.0;
     geometry_msgs::Twist cmd_vel=cmd_vel_;
     double vel_limit=(pcl_dis-min_dis)/(max_dis-min_dis)*max_vel;
-    cmd_vel.linear.x=double_constrain(cmd_vel.linear.x,0.0,vel_limit);
+    cmd_vel.linear.x=double_constrain(cmd_vel.linear.x,down_limit,vel_limit);
 
   if(cmd_vel.linear.x==0.0){
     stop_cou=10;
