@@ -30,6 +30,7 @@ pathを受けっとってそれをなぞって走行する
 * map_frame_id [string] (default : map)
 * base_link_frame_id [string] (default : base_link)
 * lookahead_distance [double] (default : 1.5)
+>distance from now position to target wp
 * loop_rate [double] (default : 100)
 * vel_max [double] (default : 2.0/3.6)
 * angular_vel_max [double] (default : 0.5)
