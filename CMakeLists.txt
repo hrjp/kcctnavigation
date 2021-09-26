@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(kcctnavigation)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
-
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -13,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf
   tf2
+  costmap_2d
   pcl_ros
   laser_geometry
 )
@@ -161,7 +159,12 @@ set(HEADERS include/kcctnavigation/TFtoPose.h)
 set(HEADERS include/kcctnavigation/FlexPose.h)
 set(HEADERS include/kcctnavigation/button_status.h)
 set(HEADERS include/kcctnavigation/PurePursuit.h)
+set(HEADERS include/kcctnavigation/astar_planning.h)
+set(HEADERS include/kcctnavigation/bezier_curve.h)
+set(HEADERS include/kcctnavigation_t/tf_position.h)
+set(HEADERS include/kcctnavigation_t/PurePursuit.h)
 set(HEADERS include/kcctcore/waypoint_type.h)
+
 
 
 
@@ -179,6 +182,18 @@ target_link_libraries(person_tracking ${catkin_LIBRARIES})
 
 add_executable(laser2pc src/laser2pc.cpp)
 target_link_libraries(laser2pc ${catkin_LIBRARIES})
+
+add_executable(astar_planning_node src/astar_planning_node.cpp)
+target_link_libraries(astar_planning_node ${catkin_LIBRARIES})
+
+add_executable(lane_planner src/lane_planner.cpp)
+target_link_libraries(lane_planner ${catkin_LIBRARIES})
+
+add_executable(pure_posePursuit src/pure_posePursuit.cpp)
+target_link_libraries(pure_posePursuit ${catkin_LIBRARIES})
+
+add_executable(costmap_node src/costmap_node.cpp)
+target_link_libraries(costmap_node ${catkin_LIBRARIES})
 
 
 
@@ -232,3 +247,6 @@ target_link_libraries(laser2pc ${catkin_LIBRARIES})
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+## Compile as C++11, supported in ROS Kinetic and newer
+add_compile_options(-std=c++14)
