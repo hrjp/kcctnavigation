@@ -177,6 +177,9 @@ target_link_libraries(pcl_distance ${catkin_LIBRARIES})
 add_executable(emergency_stoper src/emergency_stoper)
 target_link_libraries(emergency_stoper ${catkin_LIBRARIES})
 
+add_executable(safety_limit src/safety_limit.cpp)
+target_link_libraries(safety_limit ${catkin_LIBRARIES})
+
 add_executable(person_tracking src/person_tracking)
 target_link_libraries(person_tracking ${catkin_LIBRARIES})
 
@@ -194,6 +197,9 @@ target_link_libraries(pure_posePursuit ${catkin_LIBRARIES})
 
 add_executable(costmap_node src/costmap_node.cpp)
 target_link_libraries(costmap_node ${catkin_LIBRARIES})
+
+add_executable(wpBack_recovery src/wpBack_recovery.cpp)
+target_link_libraries(wpBack_recovery ${catkin_LIBRARIES})
 
 
 

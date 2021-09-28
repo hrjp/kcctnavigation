@@ -56,7 +56,7 @@ tf_position::tf_position(std::string base_id_, std::string child_id_, double rat
         }
         catch(tf2::TransformException& ex)
         {
-            ROS_WARN("%s", ex.what());
+            //ROS_WARN("%s", ex.what());
             return;
         }
     });
