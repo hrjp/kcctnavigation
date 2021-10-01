@@ -24,9 +24,6 @@
 #include "kcctnavigation_t/tf_position.h"
 #include "kcctnavigation/robot_status.h"
 
-const std::string safety_stop = "safety_stop";
-const std::string recovery = "recovery";
-
 class safety_limit
 {
 public:
@@ -57,7 +54,7 @@ private:
     double robotRadius;
     int g_max_nn; //何点見つかったら探索を打ち切るか。0にすると打ち切らない
     int rate;
-    double dt;
+    double min_dt, dt;
     double recovery_start_time;
 
     double lowMode_speedRatio;
@@ -98,7 +95,7 @@ safety_limit::safety_limit() :  stop_count(0)
     pnh.param<int>("loop_rate", rate, 50);
     pnh.param<double>("max_linear_vel", max_linear_vel, 1.0);
     pnh.param<double>("max_angular_vel", max_angular_vel, 0.5);
-    pnh.param<double>("dt", dt, 0.3);
+    pnh.param<double>("dt", min_dt, 0.3);
     pnh.param<double>("recovery_start_time", recovery_start_time, 2.0);
     pnh.param<double>("lowMode_speedRatio", lowMode_speedRatio, 0.5);
     pnh.param<bool>("dangerous_potential", dangerous_potential, true);
@@ -182,11 +179,21 @@ void safety_limit::callback_knn(const sensor_msgs::PointCloud2ConstPtr& pc2){
         }
         ROS_ASSERT(max_nn > 1);
 
+        //safety時それ以上ぶつからないように＆抜け出しやすいように予測時間を大げさにする
+        if(mode.data == robot_status_str(robot_status::safety_stop)){
+            if(6*min_dt>1.0){
+                dt = 1.0;
+            }else{
+                dt = 6*min_dt;
+            }
+        }else{
+            dt = min_dt;
+        }
+
         double next_robot_yaw = cmd_vel.angular.z * dt;
         double next_robot_x = cmd_vel.linear.x * cos(next_robot_yaw) * dt;
         double next_robot_y = cmd_vel.linear.y * sin(next_robot_yaw) * dt;
 
-        mode.data = STR(robot_status::run);
         for(int i=0; i<k_indices.size(); i++){
             double point_x = cloud->points[k_indices[i]].x;
             double point_y = cloud->points[k_indices[i]].y;
@@ -198,15 +205,15 @@ void safety_limit::callback_knn(const sensor_msgs::PointCloud2ConstPtr& pc2){
                 cmd_vel_limit.angular.z = 0;
 
                 ROS_INFO("robot safety stop");
-                mode.data = STR(robot_status::safety_stop);
+                mode.data = robot_status_str(robot_status::safety_stop);
 
                 //一定のカウントでrecoveryに入る
                 stop_count++;
                 if(stop_count > (int)(recovery_start_time*rate)){
                     ROS_INFO("robot recovery behaviour");
-                    mode.data = STR(robot_status::recovery);
+                    mode.data = robot_status_str(robot_status::recovery);
                     //dt分recoveryをpublish
-                    if(stop_count > (int)((recovery_start_time+dt)*rate)){
+                    if(stop_count > (int)((recovery_start_time+min_dt)*rate)){
                         stop_count = 0;
                     }
                 }
@@ -236,11 +243,13 @@ void safety_limit::callback_knn(const sensor_msgs::PointCloud2ConstPtr& pc2){
         }
     }
 
-    cmd_vel_limit.linear.x = constrain(cmd_vel_limit.linear.x, 0, max_linear_vel);
-    cmd_vel_limit.angular.z = constrain(cmd_vel_limit.angular.z, 0, max_angular_vel);
+    cmd_vel_limit.linear.x = constrain(cmd_vel_limit.linear.x, -max_linear_vel, max_linear_vel);
+    cmd_vel_limit.angular.z = constrain(cmd_vel_limit.angular.z, -max_angular_vel, max_angular_vel);
 
     linear_vel.data = cmd_vel_limit.linear.x;
     angular_vel.data = cmd_vel_limit.angular.z;
+
+    mode.data =  robot_status_str(robot_status::run);
 
     cmd_pub.publish(cmd_vel_limit);
     linear_vel_pub.publish(linear_vel);

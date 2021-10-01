@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <std_msgs/Bool.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Quaternion.h>
@@ -71,14 +72,16 @@ int main(int argc, char** argv)
     pnh.param<std::string>("base_link_frame_id", base_link_id, "base_foot_point");
 
     ros::Subscriber goalPose_sub = nh.subscribe("astar_plannnig_node/goal", 50, poseStamp_callback);
-    //ros::Subscriber cost_sub = nh.subscribe("astar_plannnig_node/costmap", 10, cost_callback);
     ros::Subscriber cost_sub = nh.subscribe("costmap_node/my_costmap/costmap", 10, cost_callback);
+    ros::Publisher bool_pub = nh.advertise<std_msgs::Bool>("astar_planning_node/successPlan", 10);
     ros::Publisher path_pub = nh.advertise<nav_msgs::Path>("astar_plannnig_node/path", 10);
 
     ctr::a_star star(resolution, costmapThreshold, heuristic_gain);
     bezier_curve bezier;
     //TFtoPose now_position(map_id, base_link_id, rate);
     tf_position nowPosition(map_id, base_link_id, rate);
+
+    std_msgs::Bool isSuccessPlanning;
 
     ros::Rate loop_rate(rate);
     while(ros::ok())
@@ -88,87 +91,93 @@ int main(int argc, char** argv)
             std::vector<double> path_x, path_y;
 
             if(star.planning(path_x, path_y, nowPosition.getPose(), goalPose.pose, costmap)){
+                isSuccessPlanning.data = true;
+            }else{
+                isSuccessPlanning.data = false;
+            }
 
-                //approximate bezier curve
-                int node;
-                std::vector<double> r_x, r_y;
-                for(int i=0; i<path_x.size()/approNode+1; i++){
-                    node = i*approNode;
-                    std::vector<double> p_x, p_y;
-                    if(i<path_x.size()/approNode){
-                        for(int j=0; j<approNode; j++){
-                            p_x.push_back(path_x[node+j]);
-                            p_y.push_back(path_y[node+j]);
-                        }
+            //approximate bezier curve
+            int node;
+            std::vector<double> r_x, r_y;
+            for(int i=0; i<path_x.size()/approNode+1; i++){
+                node = i*approNode;
+                std::vector<double> p_x, p_y;
+                if(i<path_x.size()/approNode){
+                    for(int j=0; j<approNode; j++){
+                        p_x.push_back(path_x[node+j]);
+                        p_y.push_back(path_y[node+j]);
+                    }
+                }else{
+                    if(path_x.size() - node == 0){
+                        break;
+                    }
+                    for(int j=0; j<path_x.size() - node; j++){
+                        p_x.push_back(path_x[node+j]);
+                        p_y.push_back(path_y[node+j]);
+                    }
+                }
+
+                for (double t = 0; t <= 1.0; t += (1/approResolution)){
+                    std::array<double, 2> point = bezier.getPos(t, p_x, p_y);
+                    r_x.push_back(point[0]);
+                    r_y.push_back(point[1]);
+                }
+            }
+            //path heading angle
+            std::vector<double> angles;
+            for(int i=0; i<r_x.size(); i++){
+                double angle;
+
+                //start point
+                //angle : -pi~pi
+                if(i==0){
+                    double dx = r_x[i+1] - r_x[i];
+                    double dy = r_y[i+1] - r_y[i];
+                    angle = arrangeAngle(atan2(dy, dx));
+                //end point
+                }else if(i==r_x.size()-1){
+                    double dx = r_x[i] - r_x[i-1];
+                    double dy = r_y[i] - r_y[i-1];
+                    angle = arrangeAngle(atan2(dy, dx));
+                }else{
+                    double dx1 = r_x[i] - r_x[i-1];
+                    double dy1 = r_y[i] - r_y[i-1];
+                    double angle1 = arrangeAngle(atan2(dy1, dx1));
+
+                    double dx2 = r_x[i+1] - r_x[i];
+                    double dy2 = r_y[i+1] - r_y[i];
+                    double angle2 = arrangeAngle(atan2(dy2, dx2));
+
+                    /*if(angle1-angle2<M_PI){
+                        angle = (angle1 + angle2)/2;
                     }else{
-                        if(path_x.size() - node == 0){
-                            break;
-                        }
-                        for(int j=0; j<path_x.size() - node; j++){
-                            p_x.push_back(path_x[node+j]);
-                            p_y.push_back(path_y[node+j]);
-                        }
-                    }
-
-                    for (double t = 0; t <= 1.0; t += (1/approResolution)){
-                        std::array<double, 2> point = bezier.getPos(t, p_x, p_y);
-                        r_x.push_back(point[0]);
-                        r_y.push_back(point[1]);
-                    }
+                        angle = angle2;
+                    }*/
+                    //うまくいかないので一旦これで
+                    angle = angle1;
                 }
-                //path heading angle
-                std::vector<double> angles;
-                for(int i=0; i<r_x.size(); i++){
-                    double angle;
+                angles.push_back(angle);
 
-                    //start point
-                    //angle : -pi~pi
-                    if(i==0){
-                        double dx = r_x[i+1] - r_x[i];
-                        double dy = r_y[i+1] - r_y[i];
-                        angle = arrangeAngle(atan2(dy, dx));
-                    //end point
-                    }else if(i==r_x.size()-1){
-                        double dx = r_x[i] - r_x[i-1];
-                        double dy = r_y[i] - r_y[i-1];
-                        angle = arrangeAngle(atan2(dy, dx));
-                    }else{
-                        double dx1 = r_x[i] - r_x[i-1];
-                        double dy1 = r_y[i] - r_y[i-1];
-                        double angle1 = arrangeAngle(atan2(dy1, dx1));
+            }
+            //convert path message
+            nav_msgs::Path plan_path;
+            for(int i=0; i<r_x.size(); i++){
+                geometry_msgs::PoseStamped pose;
+                pose.header.frame_id = map_id;
+                pose.header.stamp = ros::Time::now();
+                pose.pose.position.x = r_x[i];
+                pose.pose.position.y = r_y[i];
+                pose.pose.orientation = yaw_to_geometry_quat(angles[i]);
 
-                        double dx2 = r_x[i+1] - r_x[i];
-                        double dy2 = r_y[i+1] - r_y[i];
-                        double angle2 = arrangeAngle(atan2(dy2, dx2));
+                plan_path.poses.push_back(pose);
+            }
+            plan_path.header.frame_id = map_id;
+            plan_path.header.stamp = ros::Time::now();
 
-                        /*if(angle1-angle2<M_PI){
-                            angle = (angle1 + angle2)/2;
-                        }else{
-                            angle = angle2;
-                        }*/
-                        //うまくいかないので一旦これで
-                        angle = angle1;
-                    }
-                    angles.push_back(angle);
-
-                }
-                //convert path message
-                nav_msgs::Path plan_path;
-                for(int i=0; i<r_x.size(); i++){
-                    geometry_msgs::PoseStamped pose;
-                    pose.header.frame_id = map_id;
-                    pose.header.stamp = ros::Time::now();
-                    pose.pose.position.x = r_x[i];
-                    pose.pose.position.y = r_y[i];
-                    pose.pose.orientation = yaw_to_geometry_quat(angles[i]);
-
-                    plan_path.poses.push_back(pose);
-                }
-                plan_path.header.frame_id = map_id;
-                plan_path.header.stamp = ros::Time::now();
-
+            if(isSuccessPlanning.data){
                 path_pub.publish(plan_path);
             }
+            bool_pub.publish(isSuccessPlanning);
         }
         ros::spinOnce();
         loop_rate.sleep();

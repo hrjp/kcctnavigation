@@ -14,11 +14,8 @@
 #include <std_msgs/Int32.h>
 #include <string>
 #include "kcctnavigation/robot_status.h"
-#include "kcctnavigation/PurePursuit.h"
-
-
-const std::string recovery = "recovery";
-const std::string run = "run";
+#include "kcctnavigation_t/PurePursuit.h"
+#include "kcctnavigation_t/tf_position.h"
 
 std_msgs::String mode;
 void mode_callback(const std_msgs::String& mode_message)
@@ -85,24 +82,28 @@ int main(int argc, char** argv)
     std_msgs::String mode_out;
     geometry_msgs::Twist cmd_vel;
     ros::Time preT = ros::Time::now();
+
+    int recoveryWpNum = 0;
     while(ros::ok())
     {
         if(path.poses.size()>0){
-            if(mode_out.data == STR(robot_status::recovery)){
+            if(mode_out.data == robot_status_str(robot_status::recovery)){
                 cmd_vel.linear.x = linear_vel;
-                cmd_vel.angular.z = pure_pursuit.getYawVel(nowPosition.getPose(), recovery_pose, cmd_vel.linear.x);
+                cmd_vel.angular.z = pure_pursuit.getYawVel(nowPosition.getPoseStamped(), recovery_pose, cmd_vel.linear.x);
 
                 if((ros::Time::now() - preT) >= ros::Duration(duration)){
-                    mode_out.data = STR(robot_status::run);
-                }else if(poseStampDistance(path.poses[recoveryWpNum], now_position.toPoseStamped()) >= fin_recovery_deviation){
-                    mode_out.data = STR(robot_status::run);
+                    mode_out.data = robot_status_str(robot_status::run);
+                }else if(poseStampDistance(path.poses[recoveryWpNum], nowPosition.getPoseStamped()) <= fin_recovery_deviation){
+                    mode_out.data = robot_status_str(robot_status::run);
                 }
 
             }else{
                 //select recovery way point
-                int recoveryWpNum = now_wp.data - 1;
+                if(recoveryWpNum > 0){
+                    recoveryWpNum = now_wp.data - 1;
+                }
                 //target_deviationになるよう target way pointの更新
-                while(!(poseStampDistance(path.poses[recoveryWpNum], now_position.toPoseStamped()) >= recovery_leastDistance))
+                while(!(poseStampDistance(path.poses[recoveryWpNum], nowPosition.getPoseStamped()) >= recovery_leastDistance))
                 {
                     //first point
                     if(recoveryWpNum <= 0){
@@ -112,7 +113,7 @@ int main(int argc, char** argv)
                     recoveryWpNum--;
                 }
             
-                recovery_pose = path.poses[recoveryWpNum].pose;
+                recovery_pose = path.poses[recoveryWpNum];
 
                 mode_out = mode;
                 cmd_vel.linear.x = 0;
