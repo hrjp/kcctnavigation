@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <iostream>
 #include <math.h>
 #include <vector>
 #include <string>
@@ -177,11 +178,12 @@ int main(int argc, char** argv)
     while(ros::ok())
     {
         if(path.poses.size() > 0){
+
             //change targer pose interval following to robot velocity
             double robot_linear_vel = odom.twist.twist.linear.x;
             double target_interval = ((1-distance_rate)*disTarget_maxVel/maxVel)*abs(robot_linear_vel) + distance_rate*disTarget_maxVel;
             //updata target way point to let distance be target_deviation
-            int targetPose = 0;
+            int targetPose = 1;
             while(!(poseStampDistance(path.poses[targetPose], nowPosition.getPoseStamped()) >= target_interval))
             {
                 // path end point
@@ -251,6 +253,7 @@ int main(int argc, char** argv)
                 }
             }
 
+
             //create marker array
             // config arrow shape
             geometry_msgs::Vector3 arrow;
@@ -260,15 +263,17 @@ int main(int argc, char** argv)
 
             visualization_msgs::MarkerArray marker_array;
             marker_array.markers.resize(sampling_num);
+
             for(int i=0; i<sampling_num; i++){
                 geometry_msgs::Point linear_start;
                 linear_start.x = targetPoint[i][0];
                 linear_start.y = targetPoint[i][1];
-                linear_start.z = 0.1;
+                linear_start.z = path.poses[targetPose].pose.position.z + 0.1;
+
                 geometry_msgs::Point linear_end;
                 linear_end.x = 0.2 * markerSize * cos(targetPoint[i][2]) + targetPoint[i][0];
                 linear_end.y = 0.2 * markerSize * sin(targetPoint[i][2]) + targetPoint[i][1];
-                linear_end.z = 0.1;
+                linear_end.z = path.poses[targetPose].pose.position.z + 0.1;
 
 
                 marker_array.markers[i].header.frame_id = map_id;
@@ -296,7 +301,7 @@ int main(int argc, char** argv)
             geometry_msgs::Pose pose;
             pose.position.x = targetPoint[bestPathNum][0];
             pose.position.y = targetPoint[bestPathNum][1];
-            pose.position.z = 0;
+            pose.position.z = path.poses[targetPose].pose.position.z;
             pose.orientation = path.poses[targetPose].pose.orientation;
 
             pose_pub.publish(pose);

@@ -116,8 +116,8 @@ int main(int argc, char** argv)
                 recovery_pose = path.poses[recoveryWpNum];
 
                 mode_out = mode;
-                cmd_vel.linear.x = 0;
-                cmd_vel.angular.z = 0;
+                //cmd_vel.linear.x = 0;
+                //cmd_vel.angular.z = 0;
 
                 preT = ros::Time::now();
             }
