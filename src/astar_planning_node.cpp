@@ -86,7 +86,7 @@ int main(int argc, char** argv)
     pnh.param<double>("loop_rate", rate, 10);
     std::string map_id, base_link_id;
     pnh.param<std::string>("map_frame_id", map_id, "map");
-    pnh.param<std::string>("base_link_frame_id", base_link_id, "base_foot_point");
+    pnh.param<std::string>("base_link_frame_id", base_link_id, "base_link");
 
     ros::Subscriber goalPose_sub = nh.subscribe("astar_plannnig_node/goal", 50, poseStamp_callback);
     ros::Subscriber cost_sub = nh.subscribe("costmap_node/my_costmap/costmap", 10, cost_callback);

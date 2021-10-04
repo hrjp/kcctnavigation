@@ -151,8 +151,8 @@ int main(int argc, char** argv)
     double distanceCost_gain, obstacleCost_gain;
     pnh.param<double>("distanceCost_gain", distanceCost_gain, 1.0);
     pnh.param<double>("obstacleCost_gain", obstacleCost_gain, 1.0);
-    double obst_sense_dis;
-    pnh.param<double>("obstacle_sense_distance", obst_sense_dis, 2.0);
+    //double obst_sense_dis;
+    //pnh.param<double>("obstacle_sense_distance", obst_sense_dis, 2.0);
     double markerSize;
     pnh.param<double>("markerSize", markerSize, 1.0);
     double maxVel;
