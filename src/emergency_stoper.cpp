@@ -56,7 +56,7 @@ void cmd_vel_callback(const geometry_msgs::Twist& cmd_vel_){
     cmd_vel.linear.x=double_constrain(cmd_vel.linear.x,down_limit,vel_limit);
 
   if(cmd_vel.linear.x==0.0){
-    stop_cou=10;
+    stop_cou=50;
   }
   else{
     if(stop_cou>0){
