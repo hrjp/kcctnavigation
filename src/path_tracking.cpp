@@ -68,7 +68,7 @@ int main(int argc, char **argv){
     
 
     //2D_POSE_ESTIMATE publisher
-    ros::Publisher initial_pub = n.advertise<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 1);
+    //ros::Publisher initial_pub = n.advertise<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 1);
     //cmd_vel publisher
     ros::Publisher cmd_pub=n.advertise<geometry_msgs::Twist>("mcl_cmd_vel", 1);
     //wp now publisher
