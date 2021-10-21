@@ -47,16 +47,23 @@ a_star::a_star(double resolution_, int costmapThreshold_, double w_gain_) : reso
 
 bool a_star::planning(std::vector<double>& fx, std::vector<double>& fy, const geometry_msgs::Pose& startPos, const geometry_msgs::Pose& goalPos, const nav_msgs::OccupancyGrid& costmap_)
 {
+    //std::cout<<"aaaaa"<<std::endl;
     costmap = costmap_;
     double sx = startPos.position.x;
     double sy = startPos.position.y;
     double gx = goalPos.position.x;
     double gy = goalPos.position.y;
 
+    if(abs(gx - sx)>costmap.info.width*costmap.info.resolution/2 || abs(gy - sy)>costmap.info.width*costmap.info.resolution/2){
+        std::cout<<"goal pose cross over costmap range!"<<std::endl;
+        return false;
+    }
+
 
     Node* nstart = new Node{(int)std::round(sx/resolution), (int)std::round(sy/resolution), 0.0};
     Node* ngoal = new Node{(int)std::round(gx/resolution), (int)std::round(gy/resolution), 0.0};
 
+    //std::cout<<"bbbbb"<<std::endl;
     int min_ox = (int)std::round(costmap.info.origin.position.x/resolution);
     int max_ox = (int)std::round((costmap.info.origin.position.x + costmap.info.resolution * costmap.info.width)/resolution);
     int min_oy = (int)std::round(costmap.info.origin.position.y/resolution);
@@ -65,22 +72,30 @@ bool a_star::planning(std::vector<double>& fx, std::vector<double>& fy, const ge
     xwidth = max_ox-min_ox;
     ywidth = max_oy-min_oy;
 
+    //std::cout<<"ccccc"<<std::endl;
     std::vector<std::vector<int>> visit_map(xwidth, std::vector<int>(ywidth, 0));
     std::vector<std::vector<double>> path_cost(xwidth, std::vector<double>(ywidth, std::numeric_limits<double>::max()));
 
-    //path_cost[nstart->x][nstart->y] = 0;
+    //position jump measure
+    if(!((nstart->x-min_ox>=0 && nstart->x-min_ox<xwidth) && (nstart->y-min_oy>=0 && nstart->y-min_oy<ywidth))){
+        return false;
+    }
     path_cost[nstart->x-min_ox][nstart->y-min_oy] = 0;
 
+    //std::cout<<"ddddd"<<std::endl;
     auto cmp = [](const Node* left, const Node* right){return left->sum_cost > right->sum_cost;};
     std::priority_queue<Node*, std::vector<Node*>, decltype(cmp)> pq(cmp);
     pq.push(nstart);
 
     std::vector<Node> motion = get_motion_model();
 
+   //std::cout<<"eeeee"<<std::endl;
     while(true)
     {
         if(pq.empty()){
             std::cout<<"path don't find!"<<std::endl;
+            //delete ngoal;
+            //delete nstart;
             return false;
         }
         Node* node = pq.top();
