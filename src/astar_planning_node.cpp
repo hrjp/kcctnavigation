@@ -128,6 +128,7 @@ int main(int argc, char** argv)
                 }
             }
 
+            //std::cout<<22222<<std::endl;
             //fail start pose
             if(!isSuccessPlanning.data){
                 //path message contains only a goalPoseStamp
@@ -138,14 +139,16 @@ int main(int argc, char** argv)
 
                 path_pub.publish(plan_path);
                 bool_pub.publish(isSuccessPlanning);
-                continue;
+                //continue;
             }
 
-            
-            if(star.planning(path_x, path_y, startPose.pose, goalPose.pose, costmap)){
+            //std::cout<<33333<<std::endl;
+            if(star.planning(path_x, path_y, startPose.pose, goalPoseStamp.pose, costmap)){
+                //std::cout<<3333344444<<std::endl;
                 isSuccessPlanning.data = true;
                 goalPose = goalPoseStamp;
             }else{
+                //std::cout<<3333355555<<std::endl;
                 isSuccessPlanning.data = false;
                 bool_pub.publish(isSuccessPlanning);
                 //resampling goal pose (8 positions)
@@ -162,6 +165,7 @@ int main(int argc, char** argv)
                 }
             }
 
+            //std::cout<<44444<<std::endl;
             //fail end pose
             if(!isSuccessPlanning.data){
                 //path message contains only a goalPoseStamp
@@ -172,9 +176,10 @@ int main(int argc, char** argv)
 
                 path_pub.publish(plan_path);
                 bool_pub.publish(isSuccessPlanning);
-                continue;
+                //continue;
             }
 
+            //std::cout<<55555<<std::endl;
             //approximate bezier curve
             int node;
             std::vector<double> r_x, r_y;
@@ -202,6 +207,7 @@ int main(int argc, char** argv)
                     r_y.push_back(point[1]);
                 }
             }
+            
             //path heading angle
             std::vector<double> angles;
             for(int i=0; i<r_x.size(); i++){
