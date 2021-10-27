@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(kcctnavigation)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
-
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -12,7 +9,10 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   tf
+  tf2
+  costmap_2d
   pcl_ros
+  laser_geometry
 )
 
 ## System dependencies are found with CMake's conventions
@@ -107,7 +107,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES kcctnavigation
-  CATKIN_DEPENDS roscpp rospy std_msgs tf
+  CATKIN_DEPENDS roscpp rospy std_msgs tf tf2 laser_geometry
   DEPENDS system_lib
 )
 
@@ -159,7 +159,12 @@ set(HEADERS include/kcctnavigation/TFtoPose.h)
 set(HEADERS include/kcctnavigation/FlexPose.h)
 set(HEADERS include/kcctnavigation/button_status.h)
 set(HEADERS include/kcctnavigation/PurePursuit.h)
+set(HEADERS include/kcctnavigation/astar_planning.h)
+set(HEADERS include/kcctnavigation/bezier_curve.h)
+set(HEADERS include/kcctnavigation_t/tf_position.h)
+set(HEADERS include/kcctnavigation_t/PurePursuit.h)
 set(HEADERS include/kcctcore/waypoint_type.h)
+
 
 
 
@@ -172,8 +177,29 @@ target_link_libraries(pcl_distance ${catkin_LIBRARIES})
 add_executable(emergency_stoper src/emergency_stoper)
 target_link_libraries(emergency_stoper ${catkin_LIBRARIES})
 
+add_executable(safety_limit src/safety_limit.cpp)
+target_link_libraries(safety_limit ${catkin_LIBRARIES})
+
 add_executable(person_tracking src/person_tracking)
 target_link_libraries(person_tracking ${catkin_LIBRARIES})
+
+add_executable(laser2pc src/laser2pc.cpp)
+target_link_libraries(laser2pc ${catkin_LIBRARIES})
+
+add_executable(astar_planning_node src/astar_planning_node.cpp)
+target_link_libraries(astar_planning_node ${catkin_LIBRARIES})
+
+add_executable(lane_planner src/lane_planner.cpp)
+target_link_libraries(lane_planner ${catkin_LIBRARIES})
+
+add_executable(pure_posePursuit src/pure_posePursuit.cpp)
+target_link_libraries(pure_posePursuit ${catkin_LIBRARIES})
+
+add_executable(costmap_node src/costmap_node.cpp)
+target_link_libraries(costmap_node ${catkin_LIBRARIES})
+
+add_executable(wpBack_recovery src/wpBack_recovery.cpp)
+target_link_libraries(wpBack_recovery ${catkin_LIBRARIES})
 
 
 
@@ -227,3 +253,6 @@ target_link_libraries(person_tracking ${catkin_LIBRARIES})
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+## Compile as C++11, supported in ROS Kinetic and newer
+add_compile_options(-std=c++14)
