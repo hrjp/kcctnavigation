@@ -164,6 +164,7 @@ set(HEADERS include/kcctnavigation/bezier_curve.h)
 set(HEADERS include/kcctnavigation_t/tf_position.h)
 set(HEADERS include/kcctnavigation_t/PurePursuit.h)
 set(HEADERS include/kcctcore/waypoint_type.h)
+set(HEADERS include/kcctnavigation/path_layer.h)
 
 
 
@@ -200,6 +201,8 @@ target_link_libraries(costmap_node ${catkin_LIBRARIES})
 
 add_executable(wpBack_recovery src/wpBack_recovery.cpp)
 target_link_libraries(wpBack_recovery ${catkin_LIBRARIES})
+
+add_library(path_layer src/path_layer.cpp)
 
 
 
