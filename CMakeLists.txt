@@ -202,6 +202,9 @@ target_link_libraries(costmap_node ${catkin_LIBRARIES})
 add_executable(wpBack_recovery src/wpBack_recovery.cpp)
 target_link_libraries(wpBack_recovery ${catkin_LIBRARIES})
 
+add_executable(path_costmap src/path_costmap.cpp)
+target_link_libraries(path_costmap ${catkin_LIBRARIES})
+
 add_library(path_layer src/path_layer.cpp)
 
 
