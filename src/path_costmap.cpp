@@ -61,6 +61,25 @@ void geometry_quat_to_rpy(double& roll, double& pitch, double& yaw, geometry_msg
     tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);  //rpy are Pass by Reference
 }
 
+//pose1とpose2を通る直線とpose3が垂直に交わる点pose4を求める(直線上でpose3に一番近い点)
+void line_point_nn_pose(const geometry_msgs::Pose& pose1,const geometry_msgs::Pose& pose2,const geometry_msgs::Pose& pose3,geometry_msgs::Pose& pose4){
+    //pathの座標取得
+    double x0=pose1.position.x;
+    double y0=pose1.position.y;
+    double x1=pose2.position.x;
+    double y1=pose2.position.y;
+    double x2=pose3.position.x;
+    double y2=pose3.position.y;
+    //pathの方程式を求める
+    double a0=(y1-y0)/(x1-x0);
+    double b0=-a0*x0+y0;
+    //自己位置を通りpathに垂直な直線の方程式を求める
+    double a1=-(1/a0);
+    double b1=y2-a1*x2;
+    //2直線の交点を求める
+    pose4.position.x=(b1-b0)/(a0-a1);
+    pose4.position.y=(a0*b1-b0*a1)/(a0-a1);
+}
 
 int main(int argc, char **argv){
     
@@ -79,7 +98,7 @@ int main(int argc, char **argv){
     //double update_frequency;
     //pn.param<double>("update_frequency", update_frequency, 20.0);
     double publish_frequency;
-    pn.param<double>("publish_frequency", publish_frequency, 1.0);
+    pn.param<double>("publish_frequency", publish_frequency, 5.0);
     string global_frame;
     pn.param<string>("global_frame", global_frame, "map");
     string robot_base_frame;
@@ -114,14 +133,14 @@ int main(int argc, char **argv){
 
     //costmap init
     nav_msgs::OccupancyGrid costmap;
-    costmap.header.frame_id=robot_base_frame;
+    costmap.header.frame_id=global_frame;
     costmap.data.resize(gw*gh);
     costmap.info.width=gw;
     costmap.info.height=gh;
     costmap.info.resolution=resolution;
 
     //tf listener
-    tf::TransformListener tflistener;
+    //tf::TransformListener tflistener;
 
     while (n.ok())  {
         static int costmap_seq=0;
@@ -155,49 +174,61 @@ int main(int argc, char **argv){
         double cossita=cos(-yaw);
         //各gridのコストを計算
         int j=0;
-        geometry_msgs::PoseStamped costmap_pose,global_costmap_pose;
-        for(int gx=0;gx<gh;gx++){
-            for(int gy=0;gy<gw;gy++){
+        geometry_msgs::Pose costmap_pose;
+        for(int gy=0;gy<gw;gy++){
+            for(int gx=0;gx<gh;gx++){
+                if(path.poses.size()==0){
+                    break;
+                }
                 //double a=127.0+127.0*sin(2.0*M_PI*double(j)/148.0);
                 //costmap.data[j]=int(a);
-                //std::cout<<"AAAAAAAAAAAAAA"<<std::endl;
-                //ロボットからみたgridの座標
-                double dgx=double(gx)*resolution+map_x0;
-                double dgy=double(gy)*resolution+map_y0;
-                /*costmap_pose.pose.position.x=double(gx)*resolution+map_x0;
-                costmap_pose.pose.position.y=double(gy)*resolution+map_y0;
-                costmap_pose.pose.orientation.w=1.0;
-                costmap_pose.header.frame_id=robot_base_frame;
-                costmap_pose.header.stamp=ros::Time::now();
-                costmap_pose.header.seq=costmap_seq;*/
-                //std::cout<<"BB"<<std::endl;
 
-                //mapからみたgridの座標に変換
-                global_costmap_pose.pose.position.x=robotpose.position.x+dgx*cossita-dgy*sinsita;
-                global_costmap_pose.pose.position.y=robotpose.position.y+dgx*sinsita+dgy*cossita;
-                global_costmap_pose.pose.orientation.w=1.0;
-                global_costmap_pose.header.frame_id=global_frame;
-                global_costmap_pose.header.stamp=ros::Time::now();
-                global_costmap_pose.header.seq=costmap_seq;
+                //mapからみたgridの座標を計算
+                costmap_pose.position.x=robotpose.position.x+double(gx)*resolution+map_x0;
+                costmap_pose.position.y=robotpose.position.y+double(gy)*resolution+map_y0;
+                costmap_pose.orientation.w=1.0;
 
-                //try {
-                //    tflistener.transformPose(global_frame,costmap_pose,global_costmap_pose);
-                //} catch(tf::TransformException& ex) {
-                    //ROS_ERROR_STREAM(" error is " << ex.what());
-                //}
-                //tflistener.transformPose(robot_base_frame,costmap_pose,global_costmap_pose);
-                //std::cout<<"up"<<uplimit<<"down"<<downlimit<<std::endl;
-                //最近傍点探索
+                //現在の選択しているグリッドから一番近いwaypointを選ぶ
                 double nb_dis_min=1000.0;
                 int nb_dis_num=0;
                 for(int i=downlimit;i<uplimit;i++){
-                    double nb_dis=pose_dist2d(path.poses[i].pose,global_costmap_pose.pose);
+                    double nb_dis=pose_dist2d(path.poses[i].pose,costmap_pose);
                     if(nb_dis<nb_dis_min){
                         nb_dis_min=nb_dis;
                         nb_dis_num=i;
                     }
                 }
-                costmap.data[j]=clip(int(nb_dis_min/5.0*255.0),0,255);
+                
+                //上で選んだwaypointの前後の点を見て近い方の点を選ぶ
+                geometry_msgs::Pose nb_pose,nb_pose1,nb_pose2;
+                if(vector_rangeout(path.poses,nb_dis_num+1)){
+                    nb_pose1=path.poses[nb_dis_num+1].pose;
+                    if(vector_rangeout(path.poses,nb_dis_num-1)){
+                        nb_pose2=path.poses[nb_dis_num-1].pose;
+                        if(pose_dist2d(costmap_pose,nb_pose1)<pose_dist2d(costmap_pose,nb_pose2)){
+                            nb_pose=nb_pose1;
+                        }
+                        else{
+                            nb_pose=nb_pose2;
+                        }
+                    }
+                    else{
+                        nb_pose=path.poses[nb_dis_num+1].pose;
+                    }
+                }
+                else{
+                    cout<<nb_dis_num<<std::endl;
+                    nb_pose=path.poses[nb_dis_num-1].pose;
+                }
+                
+                //path上のロボットから一番近い点を取得
+                geometry_msgs::Pose nn_online_pose;
+                line_point_nn_pose(path.poses[nb_dis_num].pose,nb_pose,costmap_pose,nn_online_pose);
+                std::cout<<nb_dis_min<<" , "<<pose_dist2d(costmap_pose,nn_online_pose)<<std::endl;
+
+
+                costmap.data[j]=clip(int(pose_dist2d(costmap_pose,nn_online_pose)/10.0*100.0),0,100);
+                //costmap.data[j]=clip(int(nb_dis_min/1.0*100.0),0,100);
 
 
                 j++;
@@ -210,8 +241,8 @@ int main(int argc, char **argv){
         costmap.header.seq=costmap_seq;
         costmap_seq++;
         costmap.header.stamp=ros::Time::now();
-        costmap.info.origin.position.x=map_x0;
-        costmap.info.origin.position.y=map_y0;
+        costmap.info.origin.position.x=map_x0+robotpose.position.x;
+        costmap.info.origin.position.y=map_y0+robotpose.position.y;
         costmap_pub.publish(costmap);
 
         ros::spinOnce();//subsucriberの割り込み関数はこの段階で実装される
