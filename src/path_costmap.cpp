@@ -41,6 +41,14 @@ double pose_dist2d(const geometry_msgs::Pose& pose1, const geometry_msgs::Pose& 
     double dist_y=pose1.position.y-pose2.position.y;
     return std::sqrt(dist_x*dist_x+dist_y*dist_y);
 }
+
+//2つのposeの２次元距離の2乗を計算
+double pose_dist2dx2(const geometry_msgs::Pose& pose1, const geometry_msgs::Pose& pose2){
+    double dist_x=pose1.position.x-pose2.position.x;
+    double dist_y=pose1.position.y-pose2.position.y;
+    return dist_x*dist_x+dist_y*dist_y;
+}
+
 //vectorのrangeoutを判定する
 template <class T> bool vector_rangeout(const T& vec, const int range){
     if(0<=range && range<vec.size()){
@@ -55,6 +63,7 @@ template <class T> T clip(const T& n, const T& lower, const T& upper){
     return number;
 }
 
+//quaternion->rpy convert function
 void geometry_quat_to_rpy(double& roll, double& pitch, double& yaw, geometry_msgs::Quaternion& geometry_quat){
     tf::Quaternion quat;
     quaternionMsgToTF(geometry_quat, quat);
@@ -62,7 +71,7 @@ void geometry_quat_to_rpy(double& roll, double& pitch, double& yaw, geometry_msg
 }
 
 //pose1とpose2を通る直線とpose3が垂直に交わる点pose4を求める(直線上でpose3に一番近い点)
-void line_point_nn_pose(const geometry_msgs::Pose& pose1,const geometry_msgs::Pose& pose2,const geometry_msgs::Pose& pose3,geometry_msgs::Pose& pose4){
+double line_point_nn_pose(const geometry_msgs::Pose& pose1,const geometry_msgs::Pose& pose2,const geometry_msgs::Pose& pose3,geometry_msgs::Pose& pose4){
     //pathの座標取得
     double x0=pose1.position.x;
     double y0=pose1.position.y;
@@ -79,6 +88,21 @@ void line_point_nn_pose(const geometry_msgs::Pose& pose1,const geometry_msgs::Po
     //2直線の交点を求める
     pose4.position.x=(b1-b0)/(a0-a1);
     pose4.position.y=(a0*b1-b0*a1)/(a0-a1);
+
+    //pose1->pose2 * pose1->pose3 内積
+    double ip1=(x1-x0)*(x2-x0)+(y1-y0)*(y2-y0);
+    //pose2->pose1 * pose2->pose3 内積
+    double ip2=(x0-x1)*(x2-x1)+(y0-y1)*(y2-y1);
+    if(ip1<0){
+        pose4=pose1;
+        return pose_dist2d(pose1,pose3);
+    }
+    if(ip2<0){
+        pose4=pose2;
+        return pose_dist2d(pose2,pose3);
+    }
+    return pose_dist2d(pose4,pose3);
+
 }
 
 int main(int argc, char **argv){
@@ -90,9 +114,9 @@ int main(int argc, char **argv){
     //param setting
     ros::NodeHandle pn("~");
     double width;
-    pn.param<double>("width", width, 20.0);
+    pn.param<double>("width", width, 30.0);
     double height;
-    pn.param<double>("height", height, 20.0);
+    pn.param<double>("height", height, 30.0);
     double resolution;
     pn.param<double>("resolution", resolution, 0.1);
     //double update_frequency;
@@ -103,6 +127,16 @@ int main(int argc, char **argv){
     pn.param<string>("global_frame", global_frame, "map");
     string robot_base_frame;
     pn.param<string>("robot_base_frame", robot_base_frame, "base_link");
+
+    //固有パラメータ
+    //costの傾き costが0から100まで変化する幅[m]
+    double cost_path_width;
+    pn.param<double>("cost_path_width", cost_path_width, 10.0);
+    
+    //このパラメータ以上経路から外れた領域のコストを100にする 実質的にロボットが動ける道幅を指定できる[m]
+    double cost_wall_width;
+    pn.param<double>("cost_wall_width", cost_wall_width, cost_path_width);
+
 
     ros::NodeHandle lSubscriber("");
 
@@ -180,8 +214,6 @@ int main(int argc, char **argv){
                 if(path.poses.size()==0){
                     break;
                 }
-                //double a=127.0+127.0*sin(2.0*M_PI*double(j)/148.0);
-                //costmap.data[j]=int(a);
 
                 //mapからみたgridの座標を計算
                 costmap_pose.position.x=robotpose.position.x+double(gx)*resolution+map_x0;
@@ -205,7 +237,7 @@ int main(int argc, char **argv){
                     nb_pose1=path.poses[nb_dis_num+1].pose;
                     if(vector_rangeout(path.poses,nb_dis_num-1)){
                         nb_pose2=path.poses[nb_dis_num-1].pose;
-                        if(pose_dist2d(costmap_pose,nb_pose1)<pose_dist2d(costmap_pose,nb_pose2)){
+                        if(pose_dist2dx2(costmap_pose,nb_pose1)<pose_dist2dx2(costmap_pose,nb_pose2)){
                             nb_pose=nb_pose1;
                         }
                         else{
@@ -223,13 +255,8 @@ int main(int argc, char **argv){
                 
                 //path上のロボットから一番近い点を取得
                 geometry_msgs::Pose nn_online_pose;
-                line_point_nn_pose(path.poses[nb_dis_num].pose,nb_pose,costmap_pose,nn_online_pose);
-                std::cout<<nb_dis_min<<" , "<<pose_dist2d(costmap_pose,nn_online_pose)<<std::endl;
-
-
-                costmap.data[j]=clip(int(pose_dist2d(costmap_pose,nn_online_pose)/10.0*100.0),0,100);
-                //costmap.data[j]=clip(int(nb_dis_min/1.0*100.0),0,100);
-
+                double nn_online_dis=line_point_nn_pose(path.poses[nb_dis_num].pose,nb_pose,costmap_pose,nn_online_pose);
+                costmap.data[j]=(nn_online_dis>cost_wall_width)?100:clip(int(nn_online_dis/cost_path_width*100.0),0,100);
 
                 j++;
             }
