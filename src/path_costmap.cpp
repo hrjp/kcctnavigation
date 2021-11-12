@@ -270,6 +270,7 @@ int main(int argc, char **argv){
         costmap.header.stamp=ros::Time::now();
         costmap.info.origin.position.x=map_x0+robotpose.position.x;
         costmap.info.origin.position.y=map_y0+robotpose.position.y;
+        costmap.info.origin.position.z=robotpose.position.z;
         costmap_pub.publish(costmap);
 
         ros::spinOnce();//subsucriberの割り込み関数はこの段階で実装される
