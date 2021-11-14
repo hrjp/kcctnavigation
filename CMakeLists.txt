@@ -205,7 +205,13 @@ target_link_libraries(wpBack_recovery ${catkin_LIBRARIES})
 add_executable(path_costmap src/path_costmap.cpp)
 target_link_libraries(path_costmap ${catkin_LIBRARIES})
 
+add_executable(costmap_marger src/costmap_marger.cpp)
+target_link_libraries(costmap_marger ${catkin_LIBRARIES})
+
 add_library(path_layer src/path_layer.cpp)
+
+add_executable(astar_planning_node2 src/astar_planning_node2.cpp)
+target_link_libraries(astar_planning_node2 ${catkin_LIBRARIES})
 
 
 

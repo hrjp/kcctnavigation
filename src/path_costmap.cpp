@@ -112,7 +112,7 @@ int main(int argc, char **argv){
     
 
     //param setting
-    ros::NodeHandle pn("~");
+    ros::NodeHandle pn("~/my_costmap");
     double width;
     pn.param<double>("width", width, 30.0);
     double height;
@@ -131,11 +131,11 @@ int main(int argc, char **argv){
     //固有パラメータ
     //costの傾き costが0から100まで変化する幅[m]
     double cost_path_width;
-    pn.param<double>("cost_path_width", cost_path_width, 10.0);
+    pn.param<double>("path_costmap/cost_path_width", cost_path_width, 10.0);
     
     //このパラメータ以上経路から外れた領域のコストを100にする 実質的にロボットが動ける道幅を指定できる[m]
     double cost_wall_width;
-    pn.param<double>("cost_wall_width", cost_wall_width, cost_path_width);
+    pn.param<double>("path_costmap/cost_wall_width", cost_wall_width, cost_path_width);
 
 
     ros::NodeHandle lSubscriber("");
