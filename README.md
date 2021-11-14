@@ -119,6 +119,44 @@ pathを受けっとってそれをなぞって走行する
 [costmap_2d](http://wiki.ros.org/costmap_2d)  
 reference is [here](https://qiita.com/srs/items/fba2c83b96d17b2680e6)
 
+---
+
+## path_costmap
+waypoint/path上が最小になるようなコストマップ  
+A*アルゴリズムでwaypointをなぞりやすくなる
+### publisher
+* costmap_node/path_costmap [nav_msgs::OccupancyGrid]
+### subscriber
+* waypoint/path [nav_msgs::Path]
+* waypoint/now [std_msgs::Int32]
+### parameter
+* my_costmap/width [double] (default : 30.0)  
+* my_costmap/height [double] (default : 30.0)  
+* my_costmap/resolution [double] (default : 0.1)  
+* my_costmap/publish_frequency [double] (default : 5.0)  
+* my_costmap/global_frame [double] (default : map)  
+* my_costmap/robot_base_frame [double] (default : base_link)  
+
+* path_costmap/cost_path_width [double] (default : 10.0)  
+costの傾き costが0から100まで変化する幅[m]
+
+* path_costmap/cost_wall_width [double] (default : path_costmap/cost_path_width)  
+このパラメータ以上経路から外れた領域のコストを最大にする 実質的にロボットが動ける道幅を指定できる[m]
+
+---
+
+## costmap_marger
+２つのコストマップの高いほうの数値を選んで融合する  
+base_costmapのpublish時にsub_costmapのコストを融合する
+２つのコストマップのheight,width,resolutionが同じときのみ動作
+### publisher
+* costmap_node/marged_costmap [nav_msgs::OccupancyGrid]
+### subscriber
+* costmap_node/base_costmap [nav_msgs::OccupancyGrid]
+* costmap_node/sub_costmap [nav_msgs::OccupancyGrid]
+
+---
+
 ## lane_planner
 pathからレーン状にposeを敷き、costmapの情報から最適なtarget poseを出力する  
 またロボットの現在速度からロボットからtarget poseまでの距離を決定する
