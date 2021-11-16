@@ -15,6 +15,13 @@ find_package(catkin REQUIRED COMPONENTS
   laser_geometry
 )
 
+find_package(OpenMP REQUIRED)
+if(OPENMP_FOUND)
+  message(STATUS "OPENMP FOUND")
+  set(OpenMP_FLAGS ${OpenMP_CXX_FLAGS})  # or if you use C: ${OpenMP_C_FLAGS}
+  set(OpenMP_LIBS gomp)
+endif()
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -109,6 +116,7 @@ catkin_package(
   LIBRARIES kcctnavigation
   CATKIN_DEPENDS roscpp rospy std_msgs tf tf2 laser_geometry
   DEPENDS system_lib
+  DEPENDS OpenMP
 )
 
 ###########
@@ -207,6 +215,11 @@ target_link_libraries(path_costmap ${catkin_LIBRARIES})
 
 add_executable(costmap_marger src/costmap_marger.cpp)
 target_link_libraries(costmap_marger ${catkin_LIBRARIES})
+
+add_executable(path_costmap2 src/path_costmap2.cpp)
+target_compile_options(path_costmap2 PRIVATE ${OpenMP_FLAGS})
+add_dependencies(path_costmap2 ${catkin_EXPORTED_TARGETS})
+target_link_libraries(path_costmap2 ${catkin_LIBRARIES} ${OpenMP_LIBS})
 
 
 
