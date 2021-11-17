@@ -1,3 +1,7 @@
+![license](https://img.shields.io/github/license/hrjp/kcctnavigation)
+![size](https://img.shields.io/github/repo-size/hrjp/kcctnavigation)
+![commit](https://img.shields.io/github/last-commit/hrjp/kcctnavigation/main)
+
 # kcctnavigation
 自律移動の経路計画,経路追従,障害物回避等のアルゴリズムをまとめたパッケージ
 
