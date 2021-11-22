@@ -179,43 +179,66 @@ int main(int argc, char **argv){
     //tf listener
     //tf::TransformListener tflistener;
 
+    static geometry_msgs::Pose init_pose;
+    init_pose.position.x=2.0*height;
+    init_pose.position.y=2.0*width;
+
     while (n.ok())  {
-        ros::Time start_time=ros::Time::now();
-        static int costmap_seq=0;
-        geometry_msgs::Pose robotpose=now_pose.toPose();
-        geometry_msgs::PoseStamped robotposestamped=now_pose.toPoseStamped();
-
-        //pathの探索範囲を決定
-        //上限
-        int uplimit=now_wp.data;
-        while(vector_rangeout(path.poses,uplimit)){
-            if(pose_dist2d(robotpose,path.poses[uplimit].pose)>map_radius){
-                break;
-            }
-            uplimit++;
-        }
-        uplimit=clip(uplimit,0,int(path.poses.size())-1);
-        //下限
-        int downlimit=now_wp.data;
-        while(vector_rangeout(path.poses,downlimit)){
-            if(pose_dist2d(robotpose,path.poses[downlimit].pose)>map_radius){
-                break;
-            }
-            downlimit--;
-        }
-        downlimit=clip(downlimit,0,int(path.poses.size())-1);
-
-        //各gridのコストを計算
-        int j=0;
-        
         if(path.poses.size()>2){
-            #pragma omp parallel for
-            for(int gy=0;gy<gw;gy++){
-                for(int gx=0;gx<gh;gx++){
+            ros::Time start_time=ros::Time::now();
+            static int costmap_seq=0;
+            geometry_msgs::Pose robotpose=now_pose.toPose();
+            geometry_msgs::PoseStamped robotposestamped=now_pose.toPoseStamped();
+            static geometry_msgs::Pose pre_robotpose=init_pose;
+            //pathの探索範囲を決定
+            //上限
+            int uplimit=now_wp.data;
+            while(vector_rangeout(path.poses,uplimit)){
+                if(pose_dist2d(robotpose,path.poses[uplimit].pose)>map_radius){
+                    break;
+                }
+                uplimit++;
+            }
+            uplimit=clip(uplimit,0,int(path.poses.size())-1);
+            //下限
+            int downlimit=now_wp.data;
+            while(vector_rangeout(path.poses,downlimit)){
+                if(pose_dist2d(robotpose,path.poses[downlimit].pose)>map_radius){
+                    break;
+                }
+                downlimit--;
+            }
+            downlimit=clip(downlimit,0,int(path.poses.size())-1);
+
+            //各gridのコストを計算
+            int j=0;
+
+            //一つ前のフレームからの変化量（移動量）を計算
+            int diff_x=int((robotpose.position.x-pre_robotpose.position.x)/resolution);
+            int diff_y=int((robotpose.position.y-pre_robotpose.position.y)/resolution);
+            if(diff_x){pre_robotpose.position.x=robotpose.position.x;}
+            if(diff_y){pre_robotpose.position.y=robotpose.position.y;}
+            //std::cout<<"BBBBBBBB"<<std::endl;
+            std::cout<<"x="<<diff_x<<"   y="<<diff_y<<std::endl;
+            for(int gy=0;gy<gw-diff_y;gy++){
+                for(int gx=0;gx<gh-diff_x;gx++){
+                    int dx=diff_x<0?gx:gh-gx;
+                    int dy=diff_y<0?gy:gw-gy;
+                    dx=clip(dx,-gh,gh);
+                    dy=clip(dy,-gw,gw);
+                    //costmap.data[dy*gw+dx]=costmap.data[(dy-diff_y)*gw+dx];
+                    //std::cout<<"x="<<dx<<"   y="<<dy<<std::endl;
+                }
+            }
+            //#pragma omp parallel for
+            for(int gy=0;gy<diff_y;gy++){
+                for(int gx=0;gx<diff_x;gx++){
+                    int dx=diff_x>0?gx:gh-gx;
+                    int dy=diff_y>0?gy:gw-gy;
                     geometry_msgs::Pose costmap_pose;
                     //mapからみたgridの座標を計算
-                    costmap_pose.position.x=robotpose.position.x+double(gx)*resolution+map_x0;
-                    costmap_pose.position.y=robotpose.position.y+double(gy)*resolution+map_y0;
+                    costmap_pose.position.x=robotpose.position.x+double(dx)*resolution+map_x0;
+                    costmap_pose.position.y=robotpose.position.y+double(dy)*resolution+map_y0;
                     costmap_pose.orientation.w=1.0;
 
                     //現在の選択しているグリッドから一番近いwaypointpath上の点を選び距離を求める
@@ -230,24 +253,26 @@ int main(int argc, char **argv){
                         }
                     }
                     
-                    costmap.data[gy*gw+gx]=(nn_online_dis_min>cost_wall_width)?100:clip(int(nn_online_dis_min/cost_path_width*100.0),0,100);
+                    costmap.data[dy*gw+dx]=(nn_online_dis_min>cost_wall_width)?100:clip(int(nn_online_dis_min/cost_path_width*100.0),0,100);
 
                     j++;
                 }
                 
             }
+        
+        
+            //costmap publish 
+            
+            costmap.header.seq=costmap_seq;
+            costmap_seq++;
+            costmap.header.stamp=ros::Time::now();
+            costmap.info.origin.position.x=map_x0+robotpose.position.x;
+            costmap.info.origin.position.y=map_y0+robotpose.position.y;
+            costmap.info.origin.position.z=robotpose.position.z;
+            costmap_pub.publish(costmap);
+            std::cout<<"CALC TIME : "<<(ros::Time::now()-start_time).toSec()<<std::endl;
+            
         }
-        
-        //costmap publish 
-        
-        costmap.header.seq=costmap_seq;
-        costmap_seq++;
-        costmap.header.stamp=ros::Time::now();
-        costmap.info.origin.position.x=map_x0+robotpose.position.x;
-        costmap.info.origin.position.y=map_y0+robotpose.position.y;
-        costmap.info.origin.position.z=robotpose.position.z;
-        costmap_pub.publish(costmap);
-        std::cout<<"CALC TIME : "<<(ros::Time::now()-start_time).toSec()<<std::endl;
         ros::spinOnce();//subsucriberの割り込み関数はこの段階で実装される
         loop_rate.sleep();
 
