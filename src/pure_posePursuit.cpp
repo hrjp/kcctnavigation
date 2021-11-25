@@ -8,16 +8,24 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Pose.h>
+#include <std_msgs/String.h>
 #include <vector>
 #include <string>
 #include <iostream>
 #include "kcctnavigation_t/PurePursuit.h"
 #include "kcctnavigation_t/tf_position.h"
+#include "kcctnavigation/waypoint_type.h"
 
 geometry_msgs::Pose targetPose;
 void pose_callback(const geometry_msgs::Pose& pose_message)
 {
     targetPose = pose_message;
+}
+
+std_msgs::String now_type;
+void now_type_callback(const std_msgs::String& now_type_)
+{
+    now_type=now_type_;
 }
 
 template <class T> std::vector<T> normalize(std::vector<T>& num)
@@ -85,10 +93,15 @@ int main(int argc, char** argv)
     double minVelocity, maxVelocity;
     pnh.param<double>("minVelocity", minVelocity, 0.1);
     pnh.param<double>("maxVelocity", maxVelocity, 0.5);
+
     double maxCurvature;
     pnh.param<double>("maxCurvature", maxCurvature, 3);
 
+    double precision_maxVelocity;
+    pnh.param<double>("precision_maxVelocity", precision_maxVelocity, 0.4);
+
     ros::Subscriber pose_sub = nh.subscribe("pure_posePursuit/pose_in", 10, pose_callback);
+    ros::Subscriber type_sub = nh.subscribe("waypoint/now_type", 10, now_type_callback);
     ros::Publisher cmd_pub = nh.advertise<geometry_msgs::Twist>("pure_posePursuit/cmd_vel", 10);
 
     ctr::PurePursuit pure_pursuit(max_angular_vel);
@@ -98,7 +111,11 @@ int main(int argc, char** argv)
 
     geometry_msgs::Twist cmd_vel;
     while(ros::ok())
-    {
+    {   
+        double using_maxVelocity=maxVelocity;
+        if(now_type.data==waypoint_type_str(waypoint_type::precision)){
+            using_maxVelocity=precision_maxVelocity;
+        }
         //calc curvature
         double dx = targetPose.position.x - nowPosition.getPose().position.x;
         double dy = targetPose.position.y - nowPosition.getPose().position.y;
@@ -111,7 +128,7 @@ int main(int argc, char** argv)
         curvature = curvature/maxCurvature;
 
         //change velocity according to curvature (asteroid)
-        cmd_vel.linear.x = (maxVelocity-minVelocity) * pow(sin(acos(std::cbrt(curvature))), 3) + minVelocity;
+        cmd_vel.linear.x = (using_maxVelocity-minVelocity) * pow(sin(acos(std::cbrt(curvature))), 3) + minVelocity;
 
         //change velocity according to curvature (linear)
         //cmd_vel.linear.x = maxVelocity - (maxVelocity - minVelocity)*curvatures[targetWp];

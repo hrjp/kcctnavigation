@@ -20,7 +20,7 @@
 #include <fstream>
 #include <sstream>
 
-#include <kcctnavigation/waypoint_type.h>
+#include <kcctnavigation/waypoint_type_old.h>
 
 using namespace std;
 
