@@ -214,27 +214,33 @@ int main(int argc, char **argv){
             int j=0;
 
             //一つ前のフレームからの変化量（移動量）を計算
-            int diff_x=int((robotpose.position.x-pre_robotpose.position.x)/resolution);
-            int diff_y=int((robotpose.position.y-pre_robotpose.position.y)/resolution);
-            if(diff_x){pre_robotpose.position.x=robotpose.position.x;}
-            if(diff_y){pre_robotpose.position.y=robotpose.position.y;}
+            int intpose_x=int(robotpose.position.x/resolution);
+            int intpose_y=int(robotpose.position.y/resolution);
+            static int pre_intpose_x,pre_intpose_y;
+            int diff_x=intpose_x-pre_intpose_x;
+            int diff_y=intpose_y-pre_intpose_y;
+            pre_intpose_x=intpose_x;
+            pre_intpose_y=intpose_y;
+
             //std::cout<<"BBBBBBBB"<<std::endl;
             std::cout<<"x="<<diff_x<<"   y="<<diff_y<<std::endl;
             for(int gy=0;gy<gw-diff_y;gy++){
                 for(int gx=0;gx<gh-diff_x;gx++){
-                    int dx=diff_x<0?gx:gh-gx;
-                    int dy=diff_y<0?gy:gw-gy;
+                    int dx=diff_x>0?gx:gh-gx;
+                    int dy=diff_y>0?gy:gw-gy;
                     dx=clip(dx,-gh,gh);
                     dy=clip(dy,-gw,gw);
-                    //costmap.data[dy*gw+dx]=costmap.data[(dy-diff_y)*gw+dx];
+                    costmap.data[dy*gw+dx]=costmap.data[(dy+diff_y)*gw+(dx+diff_x)];
                     //std::cout<<"x="<<dx<<"   y="<<dy<<std::endl;
                 }
             }
             //#pragma omp parallel for
             for(int gy=0;gy<diff_y;gy++){
                 for(int gx=0;gx<diff_x;gx++){
-                    int dx=diff_x>0?gx:gh-gx;
-                    int dy=diff_y>0?gy:gw-gy;
+                    int dx=diff_x<0?gx:gh-gx;
+                    int dy=diff_y<0?gy:gw-gy;
+                    dx=clip(dx,-gh,gh);
+                    dy=clip(dy,-gw,gw);
                     geometry_msgs::Pose costmap_pose;
                     //mapからみたgridの座標を計算
                     costmap_pose.position.x=robotpose.position.x+double(dx)*resolution+map_x0;
