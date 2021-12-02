@@ -219,8 +219,11 @@ int main(int argc, char **argv){
             static int pre_intpose_x,pre_intpose_y;
             int diff_x=intpose_x-pre_intpose_x;
             int diff_y=intpose_y-pre_intpose_y;
+            diff_x=clip(diff_x,-gh+1,gh-1);
+            diff_y=clip(diff_y,-gw+1,gw-1);
             pre_intpose_x=intpose_x;
             pre_intpose_y=intpose_y;
+            
 
             //std::cout<<"BBBBBBBB"<<std::endl;
             std::cout<<"x="<<diff_x<<"   y="<<diff_y<<std::endl;
@@ -228,19 +231,15 @@ int main(int argc, char **argv){
                 for(int gx=0;gx<gh-diff_x;gx++){
                     int dx=diff_x>0?gx:gh-gx;
                     int dy=diff_y>0?gy:gw-gy;
-                    dx=clip(dx,-gh,gh);
-                    dy=clip(dy,-gw,gw);
-                    costmap.data[dy*gw+dx]=costmap.data[(dy+diff_y)*gw+(dx+diff_x)];
+                    //costmap.data[dy*gw+dx]=costmap.data[(dy+diff_y)*gw+(dx+diff_x)];
                     //std::cout<<"x="<<dx<<"   y="<<dy<<std::endl;
                 }
             }
-            //#pragma omp parallel for
+                        
             for(int gy=0;gy<diff_y;gy++){
                 for(int gx=0;gx<diff_x;gx++){
-                    int dx=diff_x<0?gx:gh-gx;
-                    int dy=diff_y<0?gy:gw-gy;
-                    dx=clip(dx,-gh,gh);
-                    dy=clip(dy,-gw,gw);
+                    int dx=diff_x>0?gx:gh-gx;
+                    int dy=diff_y>0?gy:gw-gy;
                     geometry_msgs::Pose costmap_pose;
                     //mapからみたgridの座標を計算
                     costmap_pose.position.x=robotpose.position.x+double(dx)*resolution+map_x0;
@@ -259,7 +258,8 @@ int main(int argc, char **argv){
                         }
                     }
                     
-                    costmap.data[dy*gw+dx]=(nn_online_dis_min>cost_wall_width)?100:clip(int(nn_online_dis_min/cost_path_width*100.0),0,100);
+                    //costmap.data[dy*gw+dx]=(nn_online_dis_min>cost_wall_width)?100:clip(int(nn_online_dis_min/cost_path_width*100.0),0,100);
+                    costmap.data[dy*gw+dx]=100;
 
                     j++;
                 }
