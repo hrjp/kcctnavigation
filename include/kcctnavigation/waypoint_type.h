@@ -5,7 +5,9 @@
 enum class waypoint_type{
     skip,
     normal,
-    precision
+    precision,
+    person_detection
+
 };
 
 std::string waypoint_type_str(waypoint_type status){
@@ -16,6 +18,8 @@ std::string waypoint_type_str(waypoint_type status){
             return "normal";
         case(waypoint_type::precision):
             return "precision";
+        case(waypoint_type::person_detection):
+            return "person_detection";
         default:
             return "";
     }
