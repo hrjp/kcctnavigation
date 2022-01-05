@@ -3,7 +3,7 @@
 * @brief path_costmap
 * @author Shunya Hara
 * @date 2021.11.1
-* @details waypoint/path上が最小になるようなコストマップ
+* @details waypoint/path上が最小になるようなコストマップ 差分計算による軽量化Ver.
 */
 
 #include <ros/ros.h>
@@ -183,6 +183,9 @@ int main(int argc, char **argv){
     init_pose.position.x=2.0*height;
     init_pose.position.y=2.0*width;
 
+    //初回の計算flag
+    bool init_calc_flag=true;
+
     while (n.ok())  {
         if(path.poses.size()>2){
             ros::Time start_time=ros::Time::now();
@@ -219,27 +222,41 @@ int main(int argc, char **argv){
             static int pre_intpose_x,pre_intpose_y;
             int diff_x=intpose_x-pre_intpose_x;
             int diff_y=intpose_y-pre_intpose_y;
-            diff_x=clip(diff_x,-gh+1,gh-1);
-            diff_y=clip(diff_y,-gw+1,gw-1);
+            if(init_calc_flag){
+                diff_x=gh-1;
+                diff_y=gw-1;
+                init_calc_flag=false;
+            }
+            else{
+                diff_x=clip(diff_x,-gh+1,gh-1);
+                diff_y=clip(diff_y,-gw+1,gw-1);
+            }
+            
             pre_intpose_x=intpose_x;
             pre_intpose_y=intpose_y;
             
 
-            //std::cout<<"BBBBBBBB"<<std::endl;
-            std::cout<<"x="<<diff_x<<"   y="<<diff_y<<std::endl;
-            for(int gy=0;gy<gw-diff_y;gy++){
-                for(int gx=0;gx<gh-diff_x;gx++){
+            //前回からの移動量だけ配列をシフト
+            for(int gy=0;gy<gw-std::abs(diff_y);gy++){
+                for(int gx=0;gx<gh-std::abs(diff_x);gx++){
                     int dx=diff_x>0?gx:gh-gx;
                     int dy=diff_y>0?gy:gw-gy;
-                    //costmap.data[dy*gw+dx]=costmap.data[(dy+diff_y)*gw+(dx+diff_x)];
-                    //std::cout<<"x="<<dx<<"   y="<<dy<<std::endl;
+
+                    int before_addr=(dy+diff_y)*gw+(dx+diff_x);
+                    int after_addr=dy*gw+dx;
+
+                    //std::cout<<"size"<<costmap.data.size()<<" dx="<<diff_x<<" dy="<<diff_y<<" after="<<after_addr<<" before="<<before_addr<<std::endl;
+                    costmap.data[after_addr]=costmap.data[before_addr];
                 }
             }
-                        
-            for(int gy=0;gy<diff_y;gy++){
-                for(int gx=0;gx<diff_x;gx++){
-                    int dx=diff_x>0?gx:gh-gx;
-                    int dy=diff_y>0?gy:gw-gy;
+            
+
+            //新しい範囲だけコスト計算
+            //diff_y*dhの長方形のコスト計算
+            for(int gy=0;gy<std::abs(diff_y);gy++){
+                for(int gx=0;gx<gh;gx++){
+                    int dx=gx;
+                    int dy=diff_y<0?gy:gw-gy-1;
                     geometry_msgs::Pose costmap_pose;
                     //mapからみたgridの座標を計算
                     costmap_pose.position.x=robotpose.position.x+double(dx)*resolution+map_x0;
@@ -258,9 +275,38 @@ int main(int argc, char **argv){
                         }
                     }
                     
-                    //costmap.data[dy*gw+dx]=(nn_online_dis_min>cost_wall_width)?100:clip(int(nn_online_dis_min/cost_path_width*100.0),0,100);
-                    costmap.data[dy*gw+dx]=100;
+                    costmap.data[dy*gw+dx]=(nn_online_dis_min>cost_wall_width)?100:clip(int(nn_online_dis_min/cost_path_width*100.0),0,100);
 
+                    j++;
+                }
+                
+            }
+
+            //diff_x*dwの長方形のコスト計算
+            //diff_x*diff_yの範囲は上とかぶっているので２回目だが微小なので無視
+            for(int gx=0;gx<std::abs(diff_x);gx++){
+                for(int gy=0;gy<gw;gy++){
+                    int dx=diff_x<0?gx:gh-gx-1;
+                    int dy=gy;
+                    geometry_msgs::Pose costmap_pose;
+                    //mapからみたgridの座標を計算
+                    costmap_pose.position.x=robotpose.position.x+double(dx)*resolution+map_x0;
+                    costmap_pose.position.y=robotpose.position.y+double(dy)*resolution+map_y0;
+                    costmap_pose.orientation.w=1.0;
+
+                    //現在の選択しているグリッドから一番近いwaypointpath上の点を選び距離を求める
+                    int nb_dis_num=0;
+                    double nn_online_dis_min=cost_wall_width+100.0;
+                    geometry_msgs::Pose nn_online_pose;
+                    for(int i=downlimit;i<uplimit;i++){
+                        double nn_online_dis=line_point_nn_pose(path.poses[i].pose,path.poses[i+1].pose,costmap_pose,nn_online_pose);
+                        if(nn_online_dis<nn_online_dis_min){
+                            nn_online_dis_min=nn_online_dis;
+                            nb_dis_num=i;
+                        }
+                    }
+                    
+                    costmap.data[dy*gw+dx]=(nn_online_dis_min>cost_wall_width)?100:clip(int(nn_online_dis_min/cost_path_width*100.0),0,100);
                     j++;
                 }
                 
