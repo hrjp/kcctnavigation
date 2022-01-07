@@ -17,7 +17,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
-#include <omp.h>
+//#include <omp.h>
 #include <time.h>
 
 #include <kcctnavigation/TFtoPose.h>
@@ -214,7 +214,7 @@ int main(int argc, char **argv){
             downlimit=clip(downlimit,0,int(path.poses.size())-1);
 
             //各gridのコストを計算
-            int j=0;
+            //int j=0;
 
             //一つ前のフレームからの変化量（移動量）を計算
             int intpose_x=int(robotpose.position.x/resolution);
@@ -253,6 +253,7 @@ int main(int argc, char **argv){
 
             //新しい範囲だけコスト計算
             //diff_y*dhの長方形のコスト計算
+            
             for(int gy=0;gy<std::abs(diff_y);gy++){
                 for(int gx=0;gx<gh;gx++){
                     int dx=gx;
@@ -277,13 +278,14 @@ int main(int argc, char **argv){
                     
                     costmap.data[dy*gw+dx]=(nn_online_dis_min>cost_wall_width)?100:clip(int(nn_online_dis_min/cost_path_width*100.0),0,100);
 
-                    j++;
+                    //j++;
                 }
                 
             }
 
             //diff_x*dwの長方形のコスト計算
             //diff_x*diff_yの範囲は上とかぶっているので２回目だが微小なので無視
+            /*
             for(int gx=0;gx<std::abs(diff_x);gx++){
                 for(int gy=0;gy<gw;gy++){
                     int dx=diff_x<0?gx:gh-gx-1;
@@ -307,10 +309,10 @@ int main(int argc, char **argv){
                     }
                     
                     costmap.data[dy*gw+dx]=(nn_online_dis_min>cost_wall_width)?100:clip(int(nn_online_dis_min/cost_path_width*100.0),0,100);
-                    j++;
+                    //j++;
                 }
                 
-            }
+            }*/
         
         
             //costmap publish 
@@ -322,7 +324,7 @@ int main(int argc, char **argv){
             costmap.info.origin.position.y=map_y0+robotpose.position.y;
             costmap.info.origin.position.z=robotpose.position.z;
             costmap_pub.publish(costmap);
-            std::cout<<"CALC TIME : "<<(ros::Time::now()-start_time).toSec()<<std::endl;
+            //std::cout<<"CALC TIME : "<<(ros::Time::now()-start_time).toSec()<<std::endl;
             
         }
         ros::spinOnce();//subsucriberの割り込み関数はこの段階で実装される
