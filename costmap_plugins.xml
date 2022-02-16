@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<package format="2">
-<class_libraries>
-<library path="lib/libgrid_layer">
-    <class type="path_layer_namespace::PathLayer" base_class_type="costmap_2d::Layer">
-        <description>path layer</description>
-    </class>
-</library>
-</class_libraries>

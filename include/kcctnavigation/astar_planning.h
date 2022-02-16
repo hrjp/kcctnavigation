@@ -47,7 +47,6 @@ a_star::a_star(double resolution_, int costmapThreshold_, double w_gain_) : reso
 
 bool a_star::planning(std::vector<double>& fx, std::vector<double>& fy, const geometry_msgs::Pose& startPos, const geometry_msgs::Pose& goalPos, const nav_msgs::OccupancyGrid& costmap_)
 {
-    //std::cout<<"aaaaa"<<std::endl;
     costmap = costmap_;
     double sx = startPos.position.x;
     double sy = startPos.position.y;
@@ -63,7 +62,6 @@ bool a_star::planning(std::vector<double>& fx, std::vector<double>& fy, const ge
     Node* nstart = new Node{(int)std::round(sx/resolution), (int)std::round(sy/resolution), 0.0};
     Node* ngoal = new Node{(int)std::round(gx/resolution), (int)std::round(gy/resolution), 0.0};
 
-    //std::cout<<"bbbbb"<<std::endl;
     int min_ox = (int)std::round(costmap.info.origin.position.x/resolution);
     int max_ox = (int)std::round((costmap.info.origin.position.x + costmap.info.resolution * costmap.info.width)/resolution);
     int min_oy = (int)std::round(costmap.info.origin.position.y/resolution);
@@ -72,7 +70,6 @@ bool a_star::planning(std::vector<double>& fx, std::vector<double>& fy, const ge
     xwidth = max_ox-min_ox;
     ywidth = max_oy-min_oy;
 
-    //std::cout<<"ccccc"<<std::endl;
     std::vector<std::vector<int>> visit_map(xwidth, std::vector<int>(ywidth, 0));
     std::vector<std::vector<double>> path_cost(xwidth, std::vector<double>(ywidth, std::numeric_limits<double>::max()));
 
@@ -82,14 +79,12 @@ bool a_star::planning(std::vector<double>& fx, std::vector<double>& fy, const ge
     }
     path_cost[nstart->x-min_ox][nstart->y-min_oy] = 0;
 
-    //std::cout<<"ddddd"<<std::endl;
     auto cmp = [](const Node* left, const Node* right){return left->sum_cost > right->sum_cost;};
     std::priority_queue<Node*, std::vector<Node*>, decltype(cmp)> pq(cmp);
     pq.push(nstart);
 
     std::vector<Node> motion = get_motion_model();
 
-   //std::cout<<"eeeee"<<std::endl;
     while(true)
     {
         if(pq.empty()){
@@ -120,8 +115,9 @@ bool a_star::planning(std::vector<double>& fx, std::vector<double>& fy, const ge
 
         for(int i=0; i<motion.size(); i++){
             //search new node according to motion model
+            double distance_goal = sqrt(pow(ngoal->x - (node->x + motion[i].x), 2) + pow(ngoal->y - (node->y + motion[i].y), 2));
             Node* new_node = new Node{node->x + motion[i].x, node->y + motion[i].y,
-                           path_cost[node->x-min_ox][node->y-min_oy] + motion[i].sum_cost + w_gain*sqrt(pow(ngoal->x - node->x, 2) + pow(ngoal->y - node->y, 2)),
+                           path_cost[node->x-min_ox][node->y-min_oy] + motion[i].sum_cost + w_gain*distance_goal + getCost(node->x*resolution, node->y*resolution),
                            node};
 
             //avoid obstract area
@@ -129,7 +125,6 @@ bool a_star::planning(std::vector<double>& fx, std::vector<double>& fy, const ge
                 delete new_node;
                 continue;
             }
-
             //searched area
             if (visit_map[new_node->x-min_ox][new_node->y-min_oy]){
                 delete new_node;
@@ -143,8 +138,8 @@ bool a_star::planning(std::vector<double>& fx, std::vector<double>& fy, const ge
                 path_cost[new_node->x][new_node->y]=path_cost[node->x][node->y]+motion[i].sum_cost;
                 pq.push(new_node);
             }*/
-            if (path_cost[node->x-min_ox][node->y-min_oy]+motion[i].sum_cost < path_cost[new_node->x-min_ox][new_node->y-min_oy]){
-                path_cost[new_node->x-min_ox][new_node->y-min_oy]=path_cost[node->x-min_ox][node->y-min_oy]+motion[i].sum_cost;
+            if (new_node->sum_cost < path_cost[new_node->x-min_ox][new_node->y-min_oy]){
+                path_cost[new_node->x-min_ox][new_node->y-min_oy] = new_node->sum_cost;
                 pq.push(new_node);
             }
 
@@ -162,14 +157,17 @@ bool a_star::planning(std::vector<double>& fx, std::vector<double>& fy, const ge
 
 std::vector<a_star::Node> a_star::get_motion_model()
 {
-    return {Node{1, 0, 1},
-            Node{0, 1, 1},
+    //avoid result vibration
+    static double bias = 0.1;
+
+    return {Node{1, 0, 1+bias},
+            Node{0, 1, 1+bias},
             Node{-1, 0, 1},
             Node{0, -1, 1},
             Node{-1, -1, sqrt(2)},
             Node{-1, 1, sqrt(2)},
-            Node{1, -1, sqrt(2)},
-            Node{1, 1, sqrt(2)}};
+            Node{1, -1, sqrt(2)+bias},
+            Node{1, 1, sqrt(2)+bias}};
 }
 
 bool a_star::verify_node(Node* node, int min_ox, int max_ox, int min_oy, int max_oy)

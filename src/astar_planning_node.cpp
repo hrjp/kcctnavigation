@@ -8,11 +8,9 @@
 #include <string>
 #include <vector>
 #include <math.h>
-#include <tf/transform_broadcaster.h>
-#include "kcctnavigation/astar_planning.h"
-#include "kcctnavigation/bezier_curve.h"
-//#include "kcctnavigation/TFtoPose.h"
-#include "kcctnavigation_t/tf_position.h"
+#include <kcctnavigation/astar_planning.h>
+#include <kcctnavigation/bezier_curve.h>
+#include <kcctnavigation_t/tf_position.h>
 
 geometry_msgs::PoseStamped goalPoseStamp;
 void poseStamp_callback(const geometry_msgs::PoseStamped& poseStamp_message)
@@ -24,7 +22,6 @@ nav_msgs::OccupancyGrid costmap;
 void cost_callback(const nav_msgs::OccupancyGrid& costmap_message)
 {
     costmap = costmap_message;
-    
 }
 
 int getCost(double x, double y)
@@ -89,13 +86,12 @@ int main(int argc, char** argv)
     pnh.param<std::string>("base_link_frame_id", base_link_id, "base_link");
 
     ros::Subscriber goalPose_sub = nh.subscribe("astar_plannnig_node/goal", 50, poseStamp_callback);
-    ros::Subscriber cost_sub = nh.subscribe("costmap_node/my_costmap/costmap", 10, cost_callback);
-    ros::Publisher bool_pub = nh.advertise<std_msgs::Bool>("astar_planning_node/successPlan", 10);
+    ros::Subscriber cost_sub = nh.subscribe("astar_plannnig_node/costmap", 10, cost_callback);
     ros::Publisher path_pub = nh.advertise<nav_msgs::Path>("astar_plannnig_node/path", 10);
+    ros::Publisher bool_pub = nh.advertise<std_msgs::Bool>("astar_planning_node/successPlan", 10);
 
     ctr::a_star star(resolution, costmapThreshold, heuristic_gain);
     bezier_curve bezier;
-    //TFtoPose now_position(map_id, base_link_id, rate);
     tf_position nowPosition(map_id, base_link_id, rate);
 
     std_msgs::Bool isSuccessPlanning;
@@ -108,7 +104,6 @@ int main(int argc, char** argv)
         if(costmap.data.size()>0){
 
             std::vector<double> path_x, path_y;
-
             //first pose stay in around obstacles
             if(getCost(nowPosition.getPose().position.x, nowPosition.getPose().position.y)<costmapThreshold){
                 startPose = nowPosition.getPoseStamped();
@@ -128,7 +123,6 @@ int main(int argc, char** argv)
                 }
             }
 
-            //std::cout<<22222<<std::endl;
             //fail start pose
             if(!isSuccessPlanning.data){
                 //path message contains only a goalPoseStamp
@@ -139,16 +133,13 @@ int main(int argc, char** argv)
 
                 path_pub.publish(plan_path);
                 bool_pub.publish(isSuccessPlanning);
-                //continue;
+               //continue;
             }
 
-            //std::cout<<33333<<std::endl;
             if(star.planning(path_x, path_y, startPose.pose, goalPoseStamp.pose, costmap)){
-                //std::cout<<3333344444<<std::endl;
                 isSuccessPlanning.data = true;
                 goalPose = goalPoseStamp;
             }else{
-                //std::cout<<3333355555<<std::endl;
                 isSuccessPlanning.data = false;
                 bool_pub.publish(isSuccessPlanning);
                 //resampling goal pose (8 positions)
@@ -165,7 +156,6 @@ int main(int argc, char** argv)
                 }
             }
 
-            //std::cout<<44444<<std::endl;
             //fail end pose
             if(!isSuccessPlanning.data){
                 //path message contains only a goalPoseStamp
@@ -179,7 +169,6 @@ int main(int argc, char** argv)
                 //continue;
             }
 
-            //std::cout<<55555<<std::endl;
             //approximate bezier curve
             int node;
             std::vector<double> r_x, r_y;
@@ -207,7 +196,7 @@ int main(int argc, char** argv)
                     r_y.push_back(point[1]);
                 }
             }
-            
+
             //path heading angle
             std::vector<double> angles;
             for(int i=0; i<r_x.size(); i++){
@@ -244,6 +233,7 @@ int main(int argc, char** argv)
                 angles.push_back(angle);
 
             }
+
             //convert path message
             nav_msgs::Path plan_path;
             for(int i=0; i<r_x.size(); i++){
@@ -265,6 +255,8 @@ int main(int argc, char** argv)
             }
             bool_pub.publish(isSuccessPlanning);
         }
+
+        startPose = nowPosition.getPoseStamped();
         ros::spinOnce();
         loop_rate.sleep();
     }

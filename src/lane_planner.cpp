@@ -287,8 +287,10 @@ int main(int argc, char** argv)
                 marker_array.markers[i].scale = arrow;
 
                 marker_array.markers[i].points.resize(2);
+                marker_array.markers[i].pose.orientation.w=1.0;
                 marker_array.markers[i].points[0] = linear_start;
                 marker_array.markers[i].points[1] = linear_end;
+                
 
                 if(i == bestPathNum){
                     marker_array.markers[i].color = red;

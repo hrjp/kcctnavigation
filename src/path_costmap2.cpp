@@ -17,6 +17,8 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <omp.h>
+#include <time.h>
 
 #include <kcctnavigation/TFtoPose.h>
 
@@ -36,14 +38,14 @@ void path_callback(const nav_msgs::Path& path_message){
 //calc functions
 
 //2つのposeの２次元距離を計算
-double pose_dist2d(const geometry_msgs::Pose& pose1, const geometry_msgs::Pose& pose2){
+inline double pose_dist2d(const geometry_msgs::Pose& pose1, const geometry_msgs::Pose& pose2){
     double dist_x=pose1.position.x-pose2.position.x;
     double dist_y=pose1.position.y-pose2.position.y;
     return std::sqrt(dist_x*dist_x+dist_y*dist_y);
 }
 
 //2つのposeの２次元距離の2乗を計算
-double pose_dist2dx2(const geometry_msgs::Pose& pose1, const geometry_msgs::Pose& pose2){
+inline double pose_dist2dx2(const geometry_msgs::Pose& pose1, const geometry_msgs::Pose& pose2){
     double dist_x=pose1.position.x-pose2.position.x;
     double dist_y=pose1.position.y-pose2.position.y;
     return dist_x*dist_x+dist_y*dist_y;
@@ -64,14 +66,14 @@ template <class T> T clip(const T& n, const T& lower, const T& upper){
 }
 
 //quaternion->rpy convert function
-void geometry_quat_to_rpy(double& roll, double& pitch, double& yaw, geometry_msgs::Quaternion& geometry_quat){
+inline void geometry_quat_to_rpy(double& roll, double& pitch, double& yaw, geometry_msgs::Quaternion& geometry_quat){
     tf::Quaternion quat;
     quaternionMsgToTF(geometry_quat, quat);
     tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);  //rpy are Pass by Reference
 }
 
 //pose1とpose2を通る直線とpose3が垂直に交わる点pose4を求める(直線上でpose3に一番近い点)
-double line_point_nn_pose(const geometry_msgs::Pose& pose1,const geometry_msgs::Pose& pose2,const geometry_msgs::Pose& pose3,geometry_msgs::Pose& pose4){
+inline double line_point_nn_pose(const geometry_msgs::Pose& pose1,const geometry_msgs::Pose& pose2,const geometry_msgs::Pose& pose3,geometry_msgs::Pose& pose4){
     //pathの座標取得
     double x0=pose1.position.x;
     double y0=pose1.position.y;
@@ -104,6 +106,7 @@ double line_point_nn_pose(const geometry_msgs::Pose& pose1,const geometry_msgs::
     return pose_dist2d(pose4,pose3);
 
 }
+
 
 int main(int argc, char **argv){
     
@@ -177,6 +180,7 @@ int main(int argc, char **argv){
     //tf::TransformListener tflistener;
 
     while (n.ok())  {
+        ros::Time start_time=ros::Time::now();
         static int costmap_seq=0;
         geometry_msgs::Pose robotpose=now_pose.toPose();
         geometry_msgs::PoseStamped robotposestamped=now_pose.toPoseStamped();
@@ -201,66 +205,37 @@ int main(int argc, char **argv){
         }
         downlimit=clip(downlimit,0,int(path.poses.size())-1);
 
-        //
-        double roll,pitch,yaw;
-        geometry_quat_to_rpy(roll,pitch,yaw,robotpose.orientation);
-        double sinsita=sin(-yaw);
-        double cossita=cos(-yaw);
         //各gridのコストを計算
         int j=0;
-        geometry_msgs::Pose costmap_pose;
-        for(int gy=0;gy<gw;gy++){
-            for(int gx=0;gx<gh;gx++){
-                if(path.poses.size()==0){
-                    break;
-                }
+        
+        if(path.poses.size()>2){
+            #pragma omp parallel for
+            for(int gy=0;gy<gw;gy++){
+                for(int gx=0;gx<gh;gx++){
+                    geometry_msgs::Pose costmap_pose;
+                    //mapからみたgridの座標を計算
+                    costmap_pose.position.x=robotpose.position.x+double(gx)*resolution+map_x0;
+                    costmap_pose.position.y=robotpose.position.y+double(gy)*resolution+map_y0;
+                    costmap_pose.orientation.w=1.0;
 
-                //mapからみたgridの座標を計算
-                costmap_pose.position.x=robotpose.position.x+double(gx)*resolution+map_x0;
-                costmap_pose.position.y=robotpose.position.y+double(gy)*resolution+map_y0;
-                costmap_pose.orientation.w=1.0;
-
-                //現在の選択しているグリッドから一番近いwaypointを選ぶ
-                double nb_dis_min=1000.0;
-                int nb_dis_num=0;
-                for(int i=downlimit;i<uplimit;i++){
-                    double nb_dis=pose_dist2d(path.poses[i].pose,costmap_pose);
-                    if(nb_dis<nb_dis_min){
-                        nb_dis_min=nb_dis;
-                        nb_dis_num=i;
-                    }
-                }
-                
-                //上で選んだwaypointの前後の点を見て近い方の点を選ぶ
-                geometry_msgs::Pose nb_pose,nb_pose1,nb_pose2;
-                if(vector_rangeout(path.poses,nb_dis_num+1)){
-                    nb_pose1=path.poses[nb_dis_num+1].pose;
-                    if(vector_rangeout(path.poses,nb_dis_num-1)){
-                        nb_pose2=path.poses[nb_dis_num-1].pose;
-                        if(pose_dist2dx2(costmap_pose,nb_pose1)<pose_dist2dx2(costmap_pose,nb_pose2)){
-                            nb_pose=nb_pose1;
-                        }
-                        else{
-                            nb_pose=nb_pose2;
+                    //現在の選択しているグリッドから一番近いwaypointpath上の点を選び距離を求める
+                    int nb_dis_num=0;
+                    double nn_online_dis_min=cost_wall_width+100.0;
+                    geometry_msgs::Pose nn_online_pose;
+                    for(int i=downlimit;i<uplimit;i++){
+                        double nn_online_dis=line_point_nn_pose(path.poses[i].pose,path.poses[i+1].pose,costmap_pose,nn_online_pose);
+                        if(nn_online_dis<nn_online_dis_min){
+                            nn_online_dis_min=nn_online_dis;
+                            nb_dis_num=i;
                         }
                     }
-                    else{
-                        nb_pose=path.poses[nb_dis_num+1].pose;
-                    }
-                }
-                else{
-                    cout<<nb_dis_num<<std::endl;
-                    nb_pose=path.poses[nb_dis_num-1].pose;
+                    
+                    costmap.data[gy*gw+gx]=(nn_online_dis_min>cost_wall_width)?100:clip(int(nn_online_dis_min/cost_path_width*100.0),0,100);
+
+                    j++;
                 }
                 
-                //path上のロボットから一番近い点を取得
-                geometry_msgs::Pose nn_online_pose;
-                double nn_online_dis=line_point_nn_pose(path.poses[nb_dis_num].pose,nb_pose,costmap_pose,nn_online_pose);
-                costmap.data[j]=(nn_online_dis>cost_wall_width)?100:clip(int(nn_online_dis/cost_path_width*100.0),0,100);
-
-                j++;
             }
-            
         }
         
         //costmap publish 
@@ -272,7 +247,7 @@ int main(int argc, char **argv){
         costmap.info.origin.position.y=map_y0+robotpose.position.y;
         costmap.info.origin.position.z=robotpose.position.z;
         costmap_pub.publish(costmap);
-
+        std::cout<<"CALC TIME : "<<(ros::Time::now()-start_time).toSec()<<std::endl;
         ros::spinOnce();//subsucriberの割り込み関数はこの段階で実装される
         loop_rate.sleep();
 

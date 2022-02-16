@@ -15,6 +15,13 @@ find_package(catkin REQUIRED COMPONENTS
   laser_geometry
 )
 
+find_package(OpenMP REQUIRED)
+if(OPENMP_FOUND)
+  message(STATUS "OPENMP FOUND")
+  set(OpenMP_FLAGS ${OpenMP_CXX_FLAGS})  # or if you use C: ${OpenMP_C_FLAGS}
+  set(OpenMP_LIBS gomp)
+endif()
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -109,6 +116,7 @@ catkin_package(
   LIBRARIES kcctnavigation
   CATKIN_DEPENDS roscpp rospy std_msgs tf tf2 laser_geometry
   DEPENDS system_lib
+  DEPENDS OpenMP
 )
 
 ###########
@@ -181,9 +189,6 @@ target_link_libraries(emergency_stoper ${catkin_LIBRARIES})
 add_executable(safety_limit src/safety_limit.cpp)
 target_link_libraries(safety_limit ${catkin_LIBRARIES})
 
-add_executable(person_tracking src/person_tracking)
-target_link_libraries(person_tracking ${catkin_LIBRARIES})
-
 add_executable(laser2pc src/laser2pc.cpp)
 target_link_libraries(laser2pc ${catkin_LIBRARIES})
 
@@ -205,7 +210,20 @@ target_link_libraries(wpBack_recovery ${catkin_LIBRARIES})
 add_executable(path_costmap src/path_costmap.cpp)
 target_link_libraries(path_costmap ${catkin_LIBRARIES})
 
-add_library(path_layer src/path_layer.cpp)
+add_executable(costmap_marger src/costmap_marger.cpp)
+target_link_libraries(costmap_marger ${catkin_LIBRARIES})
+
+add_executable(path_costmap2 src/path_costmap2.cpp)
+target_compile_options(path_costmap2 PRIVATE ${OpenMP_FLAGS})
+add_dependencies(path_costmap2 ${catkin_EXPORTED_TARGETS})
+target_link_libraries(path_costmap2 ${catkin_LIBRARIES} ${OpenMP_LIBS})
+
+add_executable(path_costmap3 src/path_costmap3.cpp)
+target_compile_options(path_costmap3 PRIVATE ${OpenMP_FLAGS})
+add_dependencies(path_costmap3 ${catkin_EXPORTED_TARGETS})
+target_link_libraries(path_costmap3 ${catkin_LIBRARIES} ${OpenMP_LIBS})
+
+
 
 
 
