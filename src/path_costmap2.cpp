@@ -247,7 +247,7 @@ int main(int argc, char **argv){
         costmap.info.origin.position.y=map_y0+robotpose.position.y;
         costmap.info.origin.position.z=robotpose.position.z;
         costmap_pub.publish(costmap);
-        std::cout<<"CALC TIME : "<<(ros::Time::now()-start_time).toSec()<<std::endl;
+        //std::cout<<"CALC TIME : "<<(ros::Time::now()-start_time).toSec()<<std::endl;
         ros::spinOnce();//subsucriberの割り込み関数はこの段階で実装される
         loop_rate.sleep();
 
