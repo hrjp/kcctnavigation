@@ -223,6 +223,11 @@ target_compile_options(path_costmap3 PRIVATE ${OpenMP_FLAGS})
 add_dependencies(path_costmap3 ${catkin_EXPORTED_TARGETS})
 target_link_libraries(path_costmap3 ${catkin_LIBRARIES} ${OpenMP_LIBS})
 
+add_executable(path_costmap4 src/path_costmap4.cpp)
+target_compile_options(path_costmap4 PRIVATE ${OpenMP_FLAGS})
+add_dependencies(path_costmap4 ${catkin_EXPORTED_TARGETS})
+target_link_libraries(path_costmap4 ${catkin_LIBRARIES} ${OpenMP_LIBS})
+
 
 
 
