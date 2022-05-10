@@ -30,7 +30,7 @@ void base_callback(const nav_msgs::OccupancyGrid& base_costmap_){
             base_costmap.data[i]=std::max(base_costmap.data[i],sub_costmap.data[i]);
         }
     }
-    costmap_pub.publish(base_costmap);
+    //costmap_pub.publish(base_costmap);
 }
 
 void sub_callback(const nav_msgs::OccupancyGrid& sub_costmap_){
@@ -59,7 +59,7 @@ int main(int argc, char **argv){
     ros::Subscriber sub_sub = lSubscriber.subscribe("/costmap_node/sub_costmap", 50, sub_callback);
 
     //costmap publisher
-    costmap_pub=n.advertise<nav_msgs::OccupancyGrid>("/costmap_node/marged_costmap", 1);
+    //costmap_pub=n.advertise<nav_msgs::OccupancyGrid>("/costmap_node/marged_costmap", 1);
     
     ros::spin();//subsucriberの割り込み関数はこの段階で実装される
     return 0;
