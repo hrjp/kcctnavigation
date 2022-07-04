@@ -113,7 +113,8 @@ int main(int argc, char** argv)
     while(ros::ok())
     {   
         double using_maxVelocity=maxVelocity;
-        if(now_type.data==waypoint_type_str(waypoint_type::precision)){
+        if( now_type.data==waypoint_type_str(waypoint_type::precision) || 
+            now_type.data==waypoint_type_str(waypoint_type::recursion_end)){
             using_maxVelocity=precision_maxVelocity;
         }
         //calc curvature
