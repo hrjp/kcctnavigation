@@ -54,7 +54,7 @@ int main(int argc, char **argv){
     ros::NodeHandle lSubscriber("");
 
     //base subscliber
-    ros::Subscriber base_sub = lSubscriber.subscribe("/costmap_node/base_costmap", 50, base_callback);
+    ros::Subscriber base_sub = lSubscriber.subscribe("/cloud2costmap/cloudCostmap", 50, base_callback);
     //sub subscliber
     ros::Subscriber sub_sub = lSubscriber.subscribe("/costmap_node/sub_costmap", 50, sub_callback);
 

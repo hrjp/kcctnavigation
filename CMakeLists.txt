@@ -22,6 +22,8 @@ if(OPENMP_FOUND)
   set(OpenMP_LIBS gomp)
 endif()
 
+find_package(OpenCV REQUIRED)
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -128,6 +130,7 @@ catkin_package(
 include_directories(
    include
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -223,7 +226,17 @@ target_compile_options(path_costmap3 PRIVATE ${OpenMP_FLAGS})
 add_dependencies(path_costmap3 ${catkin_EXPORTED_TARGETS})
 target_link_libraries(path_costmap3 ${catkin_LIBRARIES} ${OpenMP_LIBS})
 
+add_executable(velodyneCloudSeparator src/velodyneCloudSeparator.cpp)
+target_link_libraries(velodyneCloudSeparator ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 
+add_executable(map2pc src/map2pc.cpp)
+target_link_libraries(map2pc ${catkin_LIBRARIES})
+
+add_executable(pcl_diff src/pcl_diff.cpp)
+target_link_libraries(pcl_diff ${catkin_LIBRARIES})
+
+add_executable(cloud2costmap src/cloud2costmap.cpp)
+target_link_libraries(cloud2costmap ${catkin_LIBRARIES} ${OpenMP_LIBS})
 
 
 
